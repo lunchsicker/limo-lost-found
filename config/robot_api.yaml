@@ -1,0 +1,163 @@
+# Robot API + policy grammar specification (single source of truth).
+#
+# Shared by:
+#   * limo_llm      - builds the prompt API header and statically validates generated policies
+#   * limo_executor - must expose exactly these functions to the policy interpreter and
+#                     enforce the same grammar at run time (final safety authority)
+#
+# Status: DRAFT, owned jointly by limo_llm / limo_executor / limo_interfaces.
+# Location: repository-level config/ until the team decides whether it moves to
+# limo_interfaces (see docs/interface_contract.md). Do not fork copies of this file.
+
+api_version: '0.1.0'
+grammar_version: '0.1.0'
+
+# Functions the generated policy code may call. Order of `modules` is the order of the
+# `from <module> import ...` lines in the prompt (Code as Policies style API header).
+modules:
+  - perception_utils
+  - action_utils
+  - led_utils
+  - report_utils
+
+functions:
+  get_search_locations:
+    module: perception_utils
+    params: []
+    returns: list[str]
+    description: >-
+      Names of the registered search locations, in the order the executor wants them
+      visited. Never contains coordinates.
+
+  get_known_objects:
+    module: perception_utils
+    params: []
+    returns: list[str]
+    description: >-
+      Canonical names of the objects the robot is allowed to search for
+      (config/object_classes.yaml).
+
+  get_visible_obj_names:
+    module: perception_utils
+    params: []
+    returns: list[str]
+    description: >-
+      Canonical names of known objects detected in the current camera view.
+      Does not move the robot. Raises a detection error on camera/model failure.
+
+  is_obj_visible:
+    module: perception_utils
+    params:
+      - {name: obj_name, type: str, kind: object}
+    returns: bool
+    description: >-
+      True if obj_name is detected in the current camera view (single frame or short
+      observation window). Does not move or rotate the robot. False only after a valid
+      observation without detection. Camera/model errors and unsupported objects are
+      errors, not False.
+
+  goto_loc:
+    module: action_utils
+    params:
+      - {name: loc_name, type: str, kind: location}
+    returns: bool
+    description: >-
+      Navigate to a registered search location by name (the executor resolves the pose).
+      True when the location is reached, False when navigation failed (the policy must
+      then skip detection at that location).
+
+  search_here:
+    module: action_utils
+    params:
+      - {name: obj_name, type: str, kind: object}
+    returns: bool
+    description: >-
+      Widen the field of view at the current location: check the current view, then
+      rotate in place in bounded steps and detect again after each step. Returns True as
+      soon as obj_name is detected (remaining rotations are skipped), False after all
+      observation directions were checked. Orchestrated by limo_executor.
+
+  led_on:
+    module: led_utils
+    params: []
+    returns: bool
+    description: >-
+      Turn the search light on. True only if the light was really turned on. Returns
+      False when no LED hardware/driver is available.
+
+  led_off:
+    module: led_utils
+    params: []
+    returns: bool
+    description: >-
+      Turn the search light off. True only if the light was really turned off.
+
+  report_found:
+    module: report_utils
+    params:
+      - {name: obj_name, type: str, kind: object}
+      - {name: loc_name, type: str, kind: location}
+    returns: None
+    description: >-
+      Record that obj_name was found at loc_name. The executor turns this into the
+      action result (found=true).
+
+  say:
+    module: report_utils
+    params:
+      - {name: msg, type: str, kind: text}
+    returns: None
+    description: Tell the user something (status topic / TTS).
+
+# Python built-ins the policy code may call. Everything else is rejected.
+allowed_builtins:
+  - len
+
+# Policy grammar (MVP). Names are Python `ast` node class names, so the same list can be
+# enforced by the limo_llm validator and the limo_executor interpreter.
+grammar:
+  statements:
+    - Assign        # single Name target only
+    - Expr          # expression statement; must be a call
+    - If
+    - For           # target must be a Name; no `else`; iterable restricted (see rules)
+    - Break
+    - Return        # only inside a helper function
+    - FunctionDef   # only at module level; positional parameters only
+    - Pass
+  expressions:
+    - Constant      # str, int, float, bool, None
+    - Name
+    - List
+    - Tuple
+    - Compare
+    - BoolOp
+    - UnaryOp
+    - BinOp
+    - Call          # callee must be a Name: robot API, allowed built-in or bundle helper
+    - Subscript     # constant integer index only
+    - JoinedStr     # f-string, plain {name} replacement fields only
+    - FormattedValue
+  operators:
+    compare: [Eq, NotEq, Lt, LtE, Gt, GtE, In, NotIn, Is, IsNot]
+    boolean: [And, Or]
+    unary: [Not, USub]
+    binary: [Add]
+  # Context nodes that appear in the AST and are always allowed.
+  contexts: [Load, Store, And, Or, Not, USub, Add, Eq, NotEq, Lt, LtE, Gt, GtE, In, NotIn,
+             Is, IsNot, arguments, arg, keyword]
+  rules:
+    for_iterables: >-
+      A Name, a list/tuple literal, or a call to get_search_locations, get_known_objects
+      or get_visible_obj_names.
+    forbidden: >-
+      import, attribute access, while, lambda, comprehensions, try, with, class, global,
+      nonlocal, del, async, yield, decorators, default/var/keyword-only parameters,
+      starred arguments, names containing '__', recursion (direct or mutual).
+  limits:
+    max_policy_chars: 6000
+    max_helper_functions: 8      # per bundle
+    max_fgen_depth: 3            # helper -> helper nesting created by LMPFGen
+    max_loop_iterations: 100     # executor: total iterations over all loops
+    max_call_depth: 8            # executor: nested helper call depth
+    max_steps: 2000              # executor: total executed statements

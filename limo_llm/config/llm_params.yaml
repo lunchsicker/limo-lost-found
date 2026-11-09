@@ -1,0 +1,18 @@
+# Parameters for the limo_llm node. Paths left empty here use the installed defaults:
+#   robot_api_file / object_classes_file / search_locations_file -> share/limo_llm/config/common
+#   (copied from the repository-level config/ directory at build time)
+#   prompts_dir -> share/limo_llm/prompts
+limo_llm:
+  ros__parameters:
+    provider: openai              # openai | mock
+    model_name: gpt-4o-mini       # must support `stop` sequences (CaP stop tokens)
+    openai_api_key: ''            # empty -> $OPENAI_API_KEY
+    temperature: 0.0              # CaP uses temperature 0
+    max_tokens: 512
+    request_timeout: 30.0
+    max_attempts: 2               # 1 = no regeneration after a rejected policy
+    max_fgen_depth: 0             # 0 -> robot_api.yaml grammar.limits
+    max_helper_functions: 0       # 0 -> robot_api.yaml grammar.limits
+    maintain_session: false
+    output_mode: debug_topic      # debug_topic | action | none
+    execute_policy_action: /limo_executor/execute_policy

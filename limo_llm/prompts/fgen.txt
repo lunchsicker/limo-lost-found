@@ -1,0 +1,48 @@
+{api_header}
+
+# define function: seen = check_obj_here(obj_name).
+def check_obj_here(obj_name):
+  if is_obj_visible(obj_name):
+    return True
+  return search_here(obj_name)
+
+# define function: found = visit_and_check(loc_name, obj_name).
+def visit_and_check(loc_name, obj_name):
+  if not goto_loc(loc_name):
+    return False
+  return check_obj_here(obj_name)
+
+# define function: ordered = order_locs_by_hint(loc_names, hint_loc).
+def order_locs_by_hint(loc_names, hint_loc):
+  ordered = []
+  if hint_loc in loc_names:
+    ordered = [hint_loc]
+  for loc_name in loc_names:
+    if loc_name != hint_loc:
+      ordered = ordered + [loc_name]
+  return ordered
+
+# define function: rest = get_other_locs(loc_names, skip_loc).
+def get_other_locs(loc_names, skip_loc):
+  rest = []
+  for loc_name in loc_names:
+    if loc_name != skip_loc:
+      rest = rest + [loc_name]
+  return rest
+
+# define function: ok = is_known_obj(obj_name).
+def is_known_obj(obj_name):
+  return obj_name in get_known_objects()
+
+# define function: name = get_first_or_none(names).
+def get_first_or_none(names):
+  if len(names) == 0:
+    return None
+  return names[0]
+
+# example: go to the desk and look for the book there.
+if visit_and_check('desk', 'book'):
+  report_found('book', 'desk')
+
+# example: look around here for the cup.
+seen = check_obj_here('cup')

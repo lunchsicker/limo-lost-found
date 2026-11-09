@@ -1,0 +1,60 @@
+# MOCK LLM completions for offline demos (provider:=mock). These are NOT how policies are
+# produced in normal operation: with provider:=openai the LLM writes the code. The mock
+# matches a substring of the last prompt line ("# <command>." or "# define function: ...")
+# and still goes through the full LMP / LMPFGen / validation pipeline.
+responses:
+  - match: 'define function: found_loc = find_obj_in_locs('
+    completion: |
+      def find_obj_in_locs(obj_name, loc_names):
+        for loc_name in loc_names:
+          if goto_loc(loc_name):
+            if check_obj_here(obj_name):
+              report_found(obj_name, loc_name)
+              return loc_name
+        return None
+  - match: 'define function: check_obj_here('
+    completion: |
+      def check_obj_here(obj_name):
+        if is_obj_visible(obj_name):
+          return True
+        return search_here(obj_name)
+  - match: '우산'
+    completion: |
+      say('우산을 찾아볼게요.')
+      found_loc = find_obj_in_locs('umbrella', get_search_locations())
+      if found_loc:
+        say(f'{found_loc}에서 우산을 찾았어요.')
+      else:
+        say('모든 탐색 위치를 확인했지만 우산을 찾지 못했어요.')
+  - match: '가방'
+    completion: |
+      say('가방을 찾아볼게요.')
+      found_loc = find_obj_in_locs('bag', get_search_locations())
+      if found_loc:
+        say(f'{found_loc}에서 가방을 찾았어요.')
+      else:
+        say('모든 탐색 위치를 확인했지만 가방을 찾지 못했어요.')
+  - match: '컵'
+    completion: |
+      say('컵을 찾아볼게요.')
+      found_loc = find_obj_in_locs('cup', get_search_locations())
+      if found_loc:
+        say(f'{found_loc}에서 컵을 찾았어요.')
+      else:
+        say('모든 탐색 위치를 확인했지만 컵을 찾지 못했어요.')
+  - match: '폰'
+    completion: |
+      say('휴대폰을 찾아볼게요.')
+      found_loc = find_obj_in_locs('cell phone', get_search_locations())
+      if found_loc:
+        say(f'{found_loc}에서 휴대폰을 찾았어요.')
+      else:
+        say('모든 탐색 위치를 확인했지만 휴대폰을 찾지 못했어요.')
+  - match: '책'
+    completion: |
+      say('책을 찾아볼게요.')
+      found_loc = find_obj_in_locs('book', get_search_locations())
+      if found_loc:
+        say(f'{found_loc}에서 책을 찾았어요.')
+      else:
+        say('모든 탐색 위치를 확인했지만 책을 찾지 못했어요.')

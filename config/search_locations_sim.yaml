@@ -1,0 +1,25 @@
+# Registered search locations for the Webots world
+# (webots_ros2_limo/worlds/limo_world.wbt).
+#
+# limo_llm only uses the NAMES and descriptions (prompt context + validation of string
+# literals). Poses are owned by limo_executor and are deliberately NOT stored here, so the
+# LLM can never see or produce coordinates.
+#
+# Names follow ~/lost_found_llm/config/destinations_sim.yaml (the earlier prototype).
+# Verified poses for these names are in search_poses_sim.yaml (read by limo_executor only).
+# get_search_locations() in limo_executor must return names from this same list.
+
+environment: sim
+locations:
+  - name: fridge
+    description: kitchen fridge (냉장고)
+  - name: cardboard_boxes
+    description: stack of cardboard boxes in the corner (택배 상자)
+  - name: armchair
+    description: armchair (안락의자)
+  - name: sofa
+    description: living room sofa (소파)
+  - name: cabinet
+    description: cabinet (수납장)
+  - name: door
+    description: door in the west wall (문)

@@ -2,13 +2,23 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>limo_llm</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <version>0.1.0</version>
+  <description>
+    Code as Policies policy generator for the LIMO lost-and-found search robot:
+    Korean command -> few-shot LMP -> Python policy code + hierarchically generated helper
+    functions -> static validation -> PolicyBundle for limo_executor. Never executes code.
+  </description>
   <maintainer email="nys827827@gmail.com">judynoh</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <!-- OpenAI provider: openai >= 1.0 (pip install openai). Not needed for provider:=mock. -->
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
