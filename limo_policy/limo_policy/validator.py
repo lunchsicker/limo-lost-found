@@ -17,7 +17,6 @@ from typing import Dict, Iterable, List, Optional
 from limo_policy.call_graph import build_call_graph, find_cycle
 
 _CONSTANT_TYPES = (str, int, float, bool, type(None))
-_LIST_RETURNING_APIS = ('get_search_locations', 'get_known_objects', 'get_visible_obj_names')
 # Every Python built-in name except the literals; the spec's allowed_builtins are removed
 # from this set by the validator.
 _PY_BUILTINS = frozenset(n for n in dir(builtins) if not n.startswith('_')) - {
@@ -204,13 +203,14 @@ class _Checker(ast.NodeVisitor):
         else:
             self.check_binding(node, node.target.id)
         it = node.iter
+        list_apis = self.v.spec.list_apis
         ok = (isinstance(it, (ast.Name, ast.List, ast.Tuple))
               or (isinstance(it, ast.Call) and isinstance(it.func, ast.Name)
-                  and it.func.id in _LIST_RETURNING_APIS))
+                  and it.func.id in list_apis))
         if not ok:
             self.err(node, 'UNSUPPORTED_SYNTAX',
                      'for-loop must iterate over a name, a list/tuple literal or '
-                     + '/'.join(_LIST_RETURNING_APIS) + '()')
+                     + '/'.join(list_apis) + '()')
         self.visit(it)
         for stmt in node.body:
             self.visit(stmt)

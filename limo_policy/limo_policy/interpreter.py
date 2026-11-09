@@ -34,6 +34,9 @@ _CMP = {
     'Is': lambda a, b: a is b, 'IsNot': lambda a, b: a is not b,
 }
 _SAFE_VALUE_TYPES = (str, int, float, bool, type(None), list, tuple)
+# Built-ins this interpreter implements. robot_api.yaml `allowed_builtins` selects from
+# this table; a name missing here is refused at construction (never looked up elsewhere).
+_BUILTIN_IMPLS = {'len': len}
 
 
 class PolicyInterpreter:
@@ -44,7 +47,10 @@ class PolicyInterpreter:
             raise ValueError(f'robot API implementation lacks {sorted(missing)}')
         self.spec = spec
         self.api = {name: api[name] for name in spec.functions}
-        self.builtins = {name: {'len': len}[name] for name in spec.allowed_builtins}
+        unknown = set(spec.allowed_builtins) - set(_BUILTIN_IMPLS)
+        if unknown:
+            raise ValueError(f'interpreter does not implement built-ins {sorted(unknown)}')
+        self.builtins = {name: _BUILTIN_IMPLS[name] for name in spec.allowed_builtins}
         self.cancel_check = cancel_check
         lim = spec.limits
         self.max_steps = lim.get('max_steps', 2000)

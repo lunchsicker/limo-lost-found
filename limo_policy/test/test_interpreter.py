@@ -1,5 +1,7 @@
 """Reference interpreter run directly with a minimal fake Robot API (no MockRobot)."""
 
+from dataclasses import replace
+
 from conftest import CHECK_OBJ_HERE, FIND_OBJ_IN_LOCS, hierarchical_policy
 from limo_policy.errors import (DetectionError, PolicyCanceled, PolicyRuntimeError,
                                 UnknownLocationError, UnsupportedObjectError)
@@ -119,3 +121,53 @@ def test_undefined_name_is_runtime_error(spec):
 def test_api_implementation_must_be_complete(spec):
     with pytest.raises(ValueError):
         PolicyInterpreter(spec, {'say': print})
+
+
+def test_step_limit_stops_execution(spec):
+    small = replace(spec, limits=dict(spec.limits, max_steps=3))
+    fake = FakeApi(small)
+    interp = PolicyInterpreter(small, fake.table())
+    with pytest.raises(PolicyRuntimeError) as e:
+        interp.run({}, "say('1')\nsay('2')\nsay('3')\nsay('4')\nsay('5')\n")
+    assert e.value.code == 'LIMIT_EXCEEDED'
+    assert fake.calls == [('say', '1'), ('say', '2'), ('say', '3')]   # stopped at once
+
+
+def test_call_depth_limit(spec):
+    helpers = {'h1': 'def h1():\n  return h2()\n',
+               'h2': 'def h2():\n  return h3()\n',
+               'h3': "def h3():\n  say('deep')\n  return 1\n"}
+    deep = replace(spec, limits=dict(spec.limits, max_call_depth=2))
+    fake = FakeApi(deep)
+    with pytest.raises(PolicyRuntimeError) as e:
+        PolicyInterpreter(deep, fake.table()).run(helpers, 'x = h1()\n')
+    assert e.value.code == 'LIMIT_EXCEEDED' and fake.calls == []
+    _, scope = run(spec, 'x = h1()\n', helpers)   # default max_call_depth 8 is enough
+    assert scope['x'] == 1
+
+
+def test_loop_iteration_limit(spec):
+    small = replace(spec, limits=dict(spec.limits, max_loop_iterations=2))
+    fake = FakeApi(small)
+    with pytest.raises(PolicyRuntimeError) as e:
+        PolicyInterpreter(small, fake.table()).run(
+            {}, 'for loc in get_search_locations():\n  goto_loc(loc)\n')
+    assert e.value.code == 'LIMIT_EXCEEDED'
+    assert [c for c in fake.calls if c[0] == 'goto_loc'] == [('goto_loc', 'a'),
+                                                             ('goto_loc', 'b')]
+
+
+def test_error_in_robot_api_stops_policy(spec):
+    code = "goto_loc('a')\nx = search_here('cup')\nsay('after')\n"
+    with pytest.raises(DetectionError):
+        run(spec, code, raise_on_detect=DetectionError('timeout'))
+    fake = FakeApi(spec, raise_on_detect=DetectionError('timeout'))
+    with pytest.raises(DetectionError):
+        PolicyInterpreter(spec, fake.table()).run({}, code)
+    assert ('say', 'after') not in fake.calls
+
+
+def test_builtin_without_implementation_refused(spec):
+    widened = replace(spec, allowed_builtins=['len', 'open'])
+    with pytest.raises(ValueError, match='open'):
+        PolicyInterpreter(widened, FakeApi(spec).table())

@@ -107,6 +107,17 @@ class RobotApiSpec:
         """Names a policy may not define or assign (API + built-ins)."""
         return frozenset(self.functions) | frozenset(self.allowed_builtins)
 
+    @property
+    def list_apis(self):
+        """
+        Zero-argument APIs returning a list, in spec order (``for_iterables`` rule).
+
+        A policy ``for`` loop may iterate directly over a call to one of these. Derived
+        from ``params``/``returns`` so the validator does not keep its own copy.
+        """
+        return tuple(f.name for f in self.functions.values()
+                     if not f.params and f.returns.startswith('list'))
+
 
 # --------------------------------------------------------------------------- objects
 

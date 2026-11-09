@@ -39,3 +39,9 @@ def test_bad_location_file_rejected(tmp_path):
     p.write_text('locations:\n  - name: "x y"\n')
     with pytest.raises(SpecError):
         SearchEnvironment.load(str(p))
+
+
+def test_list_apis_derived_from_spec(spec):
+    # for-loop iterables of the grammar (robot_api.yaml grammar.rules.for_iterables)
+    assert spec.list_apis == ('get_search_locations', 'get_known_objects',
+                              'get_visible_obj_names')

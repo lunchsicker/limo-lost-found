@@ -114,3 +114,32 @@ def test_object_targets(validator):
     full = CHECK_OBJ_HERE + '\n' + FIND_OBJ_IN_LOCS + '\n' + hierarchical_policy('book', '책')
     assert validator.object_targets(full) == ['book']
     assert validator.object_targets(INLINE_POLICY) == ['umbrella']
+
+
+@pytest.mark.parametrize('code', [
+    'for o in get_visible_obj_names():\n  say(o)\n',
+    'for o in get_known_objects():\n  say(o)\n',
+    'for loc in get_search_locations():\n  goto_loc(loc)\n',
+])
+def test_for_over_list_apis_allowed(validator, code):
+    assert validator.check_bundle(code, {}) == []
+
+
+@pytest.mark.parametrize('code', [
+    "for x in say('a'):\n  pass\n",
+    "for x in is_obj_visible('cup'):\n  pass\n",
+    'for x in len([1]):\n  pass\n',
+])
+def test_for_over_non_list_call_rejected(validator, code):
+    assert 'UNSUPPORTED_SYNTAX' in codes(validator.check_bundle(code, {}))
+
+
+@pytest.mark.parametrize('code', [
+    "search_here('black umbrella')\n",       # attribute + class: detector checks class only
+    "is_obj_visible('검은 우산')\n",            # Korean user words are not canonical names
+    "target = 'small cup'\nfound = search_here(target)\n",
+    "goto_loc('sofa')\nreport_found('red bag', 'sofa')\n",
+])
+def test_attribute_phrases_are_not_object_names(validator, code):
+    # Not silently mapped to 'umbrella' / 'cup' / 'bag': rejected as an unknown object.
+    assert 'UNKNOWN_OBJECT' in codes(validator.check_bundle(code, {}))
