@@ -3,18 +3,18 @@ End-to-end generation with the mock LLM (Korean commands, 5 target objects).
 
 The mock LLM returns what a correct LLM is expected to write. These tests check the
 pipeline around the LLM: the prompt sent for a Korean command, hierarchical generation,
-validation, the bundle and the consistency warnings. They do NOT measure how well a real
+validation and the bundle. They do NOT measure how well a real
 LLM maps Korean words to object names (needs provider:=openai, not run here).
 """
 
 import json
 
-from conftest import FGEN_RESPONSES, hierarchical_policy, INLINE_POLICY
+from conftest import FGEN_RESPONSES, hierarchical_policy, INLINE_POLICY, PATHS
 from limo_policy.bundle import PolicyBundle
 import pytest
 
 CASES = [
-    ('가방 찾아줘.', 'bag', '가방'),
+    ('가방 찾아줘.', 'handbag', '가방'),
     ('우산이 어디 있는지 찾아줘.', 'umbrella', '우산'),
     ('컵 좀 찾아줘.', 'cup', '컵'),
     ('핸드폰 잃어버렸어. 찾아줘.', 'cell phone', '휴대폰'),
@@ -33,26 +33,19 @@ def test_korean_commands_for_five_objects(make_generator, command, obj, ko):
     assert b.command == command
     # the Korean command is the CaP query line, right after the runtime context
     prompt = llm.calls[0]['prompt']
-    assert prompt.endswith(f'objects = {gen.catalog.names!r}\n# {command}')
-    assert f"-> '{obj}'" in prompt
-    # alias-based consistency check agrees with the generated target
-    assert not any('mentions' in w for w in b.warnings)
-    # detector support is not verified yet and must be reported as such
-    assert any('NOT verified' in w for w in b.warnings)
+    assert prompt.endswith(f'objects = {gen.objects!r}\n# {command}')
     assert b.policy_code.startswith('locations = [')    # include_context like the original
 
 
-def test_alias_resolution_for_consistency_check(catalog):
-    assert catalog.resolve_from_text('핸드폰 잃어버렸어') == ['cell phone']
-    assert catalog.resolve_from_text('휴대폰이랑 우산 찾아줘') == ['cell phone', 'umbrella']
-    assert catalog.resolve_from_text('지갑 찾아줘') == []
-
-
-def test_mismatched_target_produces_warning(make_generator):
-    gen, _ = make_generator([('우산', hierarchical_policy('cup', '컵'))] + FGEN_RESPONSES)
-    r = gen.generate('우산 찾아줘.')
-    assert r.success
-    assert any("mentions ['umbrella']" in w for w in r.bundle.warnings)
+def test_objects_parameter(make_generator):
+    gen, _ = make_generator([('찾아', "x = search_here('backpack')\n")])
+    assert gen.objects == ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
+    r = gen.generate('백팩 찾아줘.')    # 'backpack' is a COCO class but not in `objects`
+    assert not r.success and 'UNKNOWN_OBJECT' in r.error_message
+    with pytest.raises(ValueError):
+        gen.__class__(gen.spec, ['cup', 'cup'], gen.env, PATHS['prompts_dir'], None)
+    with pytest.raises(ValueError):
+        gen.__class__(gen.spec, [], gen.env, PATHS['prompts_dir'], None)
 
 
 def test_unsupported_object_is_refused_by_policy(make_generator):

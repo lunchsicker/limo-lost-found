@@ -7,7 +7,7 @@
 
 ```
 "우산 찾아줘."
-   │  PromptBuilder: API 헤더(import + 시그니처 + 물체 별칭 + 규칙) + few-shot + context
+   │  PromptBuilder: API 헤더(import + 시그니처 + 규칙) + few-shot + context
    ▼
 LMP('policy_ui')  ──LLM──►  정책 코드 (미정의 helper 호출 가능)
    │  PolicyValidator.check_code (pending helper 허용)
@@ -46,7 +46,7 @@ PolicyBundle  ──(debug topic | ExecutePolicy action)──►  limo_executor
 | fgen | 함수를 exec해 함수 객체 생성 | 소스 문자열 수집, 의존성 순서로 정렬 | 같은 이유 |
 | `var_exists` | `eval(name, vars)` | 이름 집합 조회 | eval 금지 |
 | fgen 안전장치 | 없음 | 중복 방지, 순환 탐지, 깊이·개수 한도, 시그니처 인자 수 검사, API 이름 충돌 거부 | 생성 코드 안정성 |
-| 프롬프트 헤더 | import 줄만 | import 줄 + 시그니처·반환값·설명 주석 + 한국어 물체 별칭 + 규칙 주석 | 과제 요구사항(API·물체·제약을 프롬프트에 제공) |
+| 프롬프트 헤더 | import 줄만 | import 줄 + 시그니처·반환값·설명 주석 + 규칙 주석 | 과제 요구사항(API·제약을 프롬프트에 제공). 물체는 원본처럼 `objects = [...]`(COCO 클래스 이름)로만 제공 |
 | context | `objects = [...]` | `locations = [...]` + `objects = [...]` | 탐색 위치 제공. stop token에 `locations = [` 추가 |
 | query suffix | 항상 `.` 추가 | 이미 `.?!`로 끝나면 생략 | 한국어 명령 "찾아줘." 중복 방지 |
 | 하위 LMP (실행 시점 `parse_obj_name` 등) | 있음 | **MVP에서 제외** | 실행 중 LLM 호출은 executor→llm 역호출이 필요함(확장) |
@@ -72,7 +72,6 @@ PolicyBundle  ──(debug topic | ExecutePolicy action)──►  limo_executor
 | 위험 | 대응 |
 |---|---|
 | LLM이 문법 밖 코드나 없는 위치·물체를 생성 | 정적 검증(상수 전파로 helper 인자까지 추적) → 재생성 1회 → 실패 보고. executor가 런타임에서 재검사 |
-| 실제 LLM의 한국어 → 표준 이름 매핑 정확도 | 별칭 표를 프롬프트에 제공하고 별칭 기반 일관성 경고를 남김. **실제 LLM 정확도는 측정하지 않음** |
-| 별칭 부분 문자열 오탐 (예: "책상"의 "책") | 일관성 검사는 경고일 뿐 차단하지 않음 |
+| 실제 LLM의 한국어 → 물체 이름 매핑 정확도 | LLM이 `objects`(COCO 클래스 이름) 중 하나로 매핑. 목록 밖 이름은 검증기가 거부. **실제 LLM 정확도는 측정하지 않음** |
 | `stop`을 지원하지 않는 모델(일부 reasoning 모델) | 기본 모델은 `gpt-4o-mini`. 모델 교체 시 확인 필요 |
-| 탐지기 미선정 | `object_classes.yaml`에 미검증 표시 + 번들 경고 |
+| 탐지 성능 미검증 | 클래스 이름은 COCO로 확인. 실내 탐지 성능은 perception에서 확인 필요 |

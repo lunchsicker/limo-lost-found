@@ -19,7 +19,7 @@ Output modes (parameter ``output_mode``)
 import threading
 
 from limo_llm.llm_client import create_llm_client, LLMError
-from limo_llm.policy_generator import default_paths, PolicyGenerator
+from limo_llm.policy_generator import DEFAULT_OBJECTS, default_paths, PolicyGenerator
 from limo_llm.prompt_builder import read_text
 from limo_policy.specs import SpecError
 import rclpy
@@ -48,7 +48,7 @@ class LlmNode(Node):
             'max_helper_functions': 0,    # 0 -> robot_api.yaml limit
             'maintain_session': False,
             'robot_api_file': defaults['robot_api_file'],
-            'object_classes_file': defaults['object_classes_file'],
+            'objects': list(DEFAULT_OBJECTS),    # detector (COCO) class names
             'search_locations_file': defaults['search_locations_file'],
             'prompts_dir': defaults['prompts_dir'],
             'mock_responses_file': '',
@@ -84,12 +84,11 @@ class LlmNode(Node):
             'max_attempts': int(g('max_attempts').value),
         }
         self.generator = PolicyGenerator.from_files(
-            spec_path['robot_api_file'], spec_path['object_classes_file'],
-            spec_path['search_locations_file'], prompts_dir, llm, cfg=cfg, log=self._log_code)
+            spec_path['robot_api_file'], spec_path['search_locations_file'], prompts_dir, llm,
+            objects=list(g('objects').value), cfg=cfg, log=self._log_code)
         self.info(f'LLM provider={llm.provider} model={llm.model} output_mode={mode}')
         self.info(f'locations={self.generator.env.locations}')
-        self.info(f'objects={self.generator.catalog.names} '
-                  f'(detector verified: {self.generator.catalog.detector_verified})')
+        self.info(f'objects={self.generator.objects}')
 
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.pub_ready = self.create_publisher(Bool, 'ready_for_input', latched)

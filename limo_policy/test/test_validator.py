@@ -141,5 +141,5 @@ def test_for_over_non_list_call_rejected(validator, code):
     "goto_loc('sofa')\nreport_found('red bag', 'sofa')\n",
 ])
 def test_attribute_phrases_are_not_object_names(validator, code):
-    # Not silently mapped to 'umbrella' / 'cup' / 'bag': rejected as an unknown object.
+    # Not silently mapped to 'umbrella' / 'cup' / 'handbag': rejected as an unknown object.
     assert 'UNKNOWN_OBJECT' in codes(validator.check_bundle(code, {}))

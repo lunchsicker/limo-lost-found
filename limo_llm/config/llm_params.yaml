@@ -1,9 +1,14 @@
-# Parameters for the limo_llm node. Paths left empty here use the installed defaults:
-#   robot_api_file / object_classes_file / search_locations_file -> limo_policy.paths
+# Parameters for the limo_llm node. llm.launch.py also passes `objects` to the DEBUG mock
+# executor. (No `/**` section: launch arguments are passed as `/**` and must win.)
+# Paths left empty here use the installed defaults:
+#   robot_api_file / search_locations_file -> limo_policy.paths
 #   ($LIMO_CONFIG_DIR, else share/limo_policy/config, else the repository config/)
 #   prompts_dir -> share/limo_llm/prompts
 limo_llm:
   ros__parameters:
+    # Searchable objects = detector (COCO) class names. The LLM maps the user's words to
+    # these; any other object name is rejected by the validator.
+    objects: [handbag, umbrella, cup, cell phone, book]
     provider: openai              # openai | mock
     model_name: gpt-4o-mini       # must support `stop` sequences (CaP stop tokens)
     openai_api_key: ''            # empty -> $OPENAI_API_KEY

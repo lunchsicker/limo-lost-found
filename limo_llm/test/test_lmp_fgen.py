@@ -42,7 +42,7 @@ def test_three_level_recursion(make_generator):
 def test_duplicate_generation_prevented(make_generator):
     policy = ("a = find_obj_in_locs('cup', get_search_locations())\n"
               "b = find_obj_in_locs('book', get_search_locations())\n"
-              "c = check_obj_here('bag')\n")
+              "c = check_obj_here('handbag')\n")
     gen, llm = make_generator([('컵', policy)] + FGEN_RESPONSES)
     r = gen.generate('컵이랑 책이랑 가방')
     assert r.success, r.error_message

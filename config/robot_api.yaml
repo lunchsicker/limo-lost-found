@@ -35,15 +35,15 @@ functions:
     params: []
     returns: list[str]
     description: >-
-      Canonical names of the objects the robot is allowed to search for
-      (config/object_classes.yaml).
+      Names of the objects the robot is allowed to search for (detector class
+      names, the same list as `objects`).
 
   get_visible_obj_names:
     module: perception_utils
     params: []
     returns: list[str]
     description: >-
-      Canonical names of known objects detected in the current camera view.
+      Names (from `objects`) of the objects detected in the current camera view.
       Does not move the robot. Raises a detection error on camera/model failure.
 
   is_obj_visible:

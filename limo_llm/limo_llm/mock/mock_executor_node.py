@@ -14,10 +14,10 @@ import json
 import threading
 
 from limo_llm.mock.mock_robot import MockRobot, MockScenario, run_bundle
-from limo_llm.policy_generator import default_paths
+from limo_llm.policy_generator import check_objects, DEFAULT_OBJECTS, default_paths
 from limo_llm.resources import default_package_dir
 from limo_policy.bundle import PolicyBundle
-from limo_policy.specs import ObjectCatalog, RobotApiSpec, SearchEnvironment
+from limo_policy.specs import RobotApiSpec, SearchEnvironment
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -29,7 +29,7 @@ class MockExecutorNode(Node):
         super().__init__('mock_executor')
         d = default_paths()
         self.declare_parameter('robot_api_file', d['robot_api_file'])
-        self.declare_parameter('object_classes_file', d['object_classes_file'])
+        self.declare_parameter('objects', list(DEFAULT_OBJECTS))
         self.declare_parameter('search_locations_file', d['search_locations_file'])
         self.declare_parameter('scenario_file',
                                default_package_dir('config') + '/mock_scenario.yaml')
@@ -37,8 +37,7 @@ class MockExecutorNode(Node):
         self.declare_parameter('cancel_topic', '/limo_llm/cancel')
         g = self.get_parameter
         self.spec = RobotApiSpec.load(g('robot_api_file').value or d['robot_api_file'])
-        self.catalog = ObjectCatalog.load(g('object_classes_file').value
-                                          or d['object_classes_file'])
+        self.objects = check_objects(g('objects').value)
         self.env = SearchEnvironment.load(g('search_locations_file').value
                                           or d['search_locations_file'])
         self.scenario_file = g('scenario_file').value
@@ -65,7 +64,7 @@ class MockExecutorNode(Node):
 
     def _run(self, bundle):
         self.robot = MockRobot(MockScenario.from_yaml(self.scenario_file))
-        res = run_bundle(bundle, self.robot, self.spec, self.catalog.names, self.env.locations)
+        res = run_bundle(bundle, self.robot, self.spec, self.objects, self.env.locations)
         for m in res.messages:
             self.get_logger().info(f'robot says: {m}')
         self.get_logger().info(f'[{bundle.request_id}] {res.outcome}: {res.message} '

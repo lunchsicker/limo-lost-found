@@ -9,15 +9,14 @@ sys.path.insert(0, PKG)   # run from the source tree without colcon
 sys.path.insert(1, os.path.join(os.path.dirname(PKG), 'limo_policy'))
 
 from limo_llm.llm_client import MockLLMClient  # noqa: E402
-from limo_llm.policy_generator import PolicyGenerator  # noqa: E402
-from limo_policy.specs import ObjectCatalog, RobotApiSpec, SearchEnvironment  # noqa: E402
+from limo_llm.policy_generator import DEFAULT_OBJECTS, PolicyGenerator  # noqa: E402
+from limo_policy.specs import RobotApiSpec, SearchEnvironment  # noqa: E402
 from limo_policy.validator import PolicyValidator  # noqa: E402
 import pytest  # noqa: E402,I100
 
 COMMON = os.path.join(os.path.dirname(PKG), 'config')
 PATHS = {
     'robot_api_file': os.path.join(COMMON, 'robot_api.yaml'),
-    'object_classes_file': os.path.join(COMMON, 'object_classes.yaml'),
     'search_locations_file': os.path.join(COMMON, 'search_locations_sim.yaml'),
     'prompts_dir': os.path.join(PKG, 'prompts'),
 }
@@ -78,8 +77,8 @@ def spec():
 
 
 @pytest.fixture(scope='session')
-def catalog():
-    return ObjectCatalog.load(PATHS['object_classes_file'])
+def objects():
+    return list(DEFAULT_OBJECTS)
 
 
 @pytest.fixture(scope='session')
@@ -88,8 +87,8 @@ def env():
 
 
 @pytest.fixture
-def validator(spec, catalog, env):
-    return PolicyValidator(spec, catalog.names, env.locations)
+def validator(spec, objects, env):
+    return PolicyValidator(spec, objects, env.locations)
 
 
 @pytest.fixture

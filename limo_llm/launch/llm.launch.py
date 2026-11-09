@@ -16,11 +16,14 @@ from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
+import yaml
 
 
 def generate_launch_description():
     share = get_package_share_directory('limo_llm')
     params_file = os.path.join(share, 'config', 'llm_params.yaml')
+    with open(params_file, 'r', encoding='utf-8') as f:   # one `objects` list for both nodes
+        objects = yaml.safe_load(f)['limo_llm']['ros__parameters']['objects']
 
     provider = LaunchConfiguration('provider')
     mock_file = PythonExpression([
@@ -59,6 +62,7 @@ def generate_launch_description():
             output='screen', emulate_tty=True,
             condition=IfCondition(LaunchConfiguration('mock_executor')),
             parameters=[{
+                'objects': objects,
                 'search_locations_file': LaunchConfiguration('search_locations_file'),
                 'scenario_file': LaunchConfiguration('scenario_file'),
             }],

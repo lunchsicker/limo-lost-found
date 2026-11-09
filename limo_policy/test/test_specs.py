@@ -1,4 +1,4 @@
-"""Spec loaders and object catalog (moved from limo_llm/test/test_specs_and_client.py)."""
+"""Spec loaders (moved from limo_llm/test/test_specs_and_client.py)."""
 
 from conftest import PATHS
 from limo_policy.specs import SearchEnvironment, SpecError
@@ -15,16 +15,6 @@ def test_robot_api_matches_agreed_functions(spec):
     assert spec.functions['report_found'].signature == \
         'report_found(obj_name: str, loc_name: str) -> None'
     assert spec.api_version and spec.grammar_version
-
-
-def test_catalog_has_five_unverified_objects(catalog):
-    assert catalog.names == ['bag', 'umbrella', 'cup', 'cell phone', 'book']
-    assert not catalog.detector_verified
-    assert all(not o.verified for o in catalog.objects.values())
-    assert catalog.detector_classes_for('bag') == ['backpack', 'handbag', 'suitcase']
-    assert catalog.detector_classes_for('cell phone') == ['cell phone']
-    with pytest.raises(KeyError):
-        catalog.detector_classes_for('wallet')
 
 
 def test_locations_have_no_coordinates(env):

@@ -6,7 +6,7 @@ LIMO 분실물 탐색 로봇의 **Code as Policies 정책 생성기**(ROS 2 Humb
 
 - 설계와 공식 CaP 대비 변경점: [`../docs/limo_llm_design.md`](../docs/limo_llm_design.md)
 - executor·perception·interfaces 계약: [`../docs/interface_contract.md`](../docs/interface_contract.md)
-- 공통 명세(단일 원천): [`../config/robot_api.yaml`](../config/robot_api.yaml), [`../config/object_classes.yaml`](../config/object_classes.yaml), [`../config/search_locations_sim.yaml`](../config/search_locations_sim.yaml)
+- 공통 명세(단일 원천): [`../config/robot_api.yaml`](../config/robot_api.yaml), [`../config/search_locations_sim.yaml`](../config/search_locations_sim.yaml)
 
 ## 구조
 

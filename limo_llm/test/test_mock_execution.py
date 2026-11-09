@@ -10,7 +10,7 @@ from limo_llm.mock.mock_robot import MockRobot, MockScenario, run_bundle
 import pytest
 
 LOCS = ['fridge', 'cardboard_boxes', 'armchair', 'sofa', 'cabinet', 'door']
-OBJS = ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+OBJS = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 
 
 @pytest.fixture(params=['inline', 'hierarchical'])

@@ -2,13 +2,13 @@
 # placements: object -> [location, view]; view 0 = view on arrival, view k = after k
 # rotation steps of search_here(). location null = robot start pose.
 locations: [fridge, cardboard_boxes, armchair, sofa, cabinet, door]
-known_objects: [bag, umbrella, cup, cell phone, book]
+known_objects: [handbag, umbrella, cup, cell phone, book]
 placements:
   umbrella: [sofa, 2]
   cup: [fridge, 0]
   cell phone: [cabinet, 4]
   book: [door, 1]
-  # bag is placed nowhere -> NOT_FOUND
+  # handbag is placed nowhere -> NOT_FOUND
 unreachable: [armchair]
 undetectable: []
 camera_error_at: null

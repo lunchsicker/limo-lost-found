@@ -8,7 +8,7 @@ package_name = 'limo_policy'
 # installs them to share/limo_policy/config. Pose files (search_poses_*.yaml) belong to
 # limo_executor and are NOT installed here. data_files must be relative (setup.py runs
 # from the package directory).
-SHARED_SPECS = ['robot_api.yaml', 'object_classes.yaml']
+SHARED_SPECS = ['robot_api.yaml']
 config_dir = os.path.join('..', 'config')
 shared_config = [os.path.join(config_dir, f) for f in SHARED_SPECS]
 shared_config += sorted(glob(os.path.join(config_dir, 'search_locations_*.yaml')))

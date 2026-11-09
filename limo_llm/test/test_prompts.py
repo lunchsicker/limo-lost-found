@@ -11,8 +11,8 @@ import pytest
 
 
 @pytest.fixture
-def builder(spec, catalog, env):
-    return PromptBuilder(spec, catalog, env, PATHS['prompts_dir'])
+def builder(spec, objects, env):
+    return PromptBuilder(spec, objects, env, PATHS['prompts_dir'])
 
 
 def split_policy_examples(template):
@@ -31,25 +31,26 @@ def split_policy_examples(template):
     return out
 
 
-def test_policy_examples_parse_into_blocks(builder):
+def test_policy_examples_parse_into_blocks(builder, objects):
     examples = split_policy_examples(builder.templates['policy'])
     assert len(examples) >= 8
-    for _, objects, _, _ in examples:
-        assert objects == ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+    for _, example_objects, _, _ in examples:
+        assert example_objects == objects == ['handbag', 'umbrella', 'cup', 'cell phone',
+                                              'book']
 
 
-def test_every_policy_example_is_valid_grammar(builder, spec, catalog):
+def test_every_policy_example_is_valid_grammar(builder, spec):
     for locations, objects, query, code in split_policy_examples(builder.templates['policy']):
-        validator = PolicyValidator(spec, catalog.names, locations)
+        validator = PolicyValidator(spec, objects, locations)
         context = f'locations = {locations!r}\nobjects = {objects!r}\n'
         pending = find_undefined_functions(code, spec.reserved_names)
         issues = validator.check_code(context + code, pending=pending)
         assert issues == [], f'{query}: {issues}'
 
 
-def test_fgen_examples_are_valid_grammar(builder, spec, catalog):
+def test_fgen_examples_are_valid_grammar(builder, spec, objects):
     body = builder.templates['fgen'].split(API_PLACEHOLDER, 1)[1]
-    validator = PolicyValidator(spec, catalog.names, ['desk', 'sofa'])
+    validator = PolicyValidator(spec, objects, ['desk', 'sofa'])
     assert validator.check_code(body) == []
     defs = [n for n in ast.parse(body).body if isinstance(n, ast.FunctionDef)]
     assert len(defs) >= 5
@@ -82,12 +83,10 @@ def test_api_header_lists_every_api_function(builder, spec):
     assert imported == set(spec.functions)
 
 
-def test_api_header_lists_korean_aliases(builder):
-    header = builder.api_header()
-    for ko, name in [('가방', 'bag'), ('우산', 'umbrella'), ('컵', 'cup'), ('휴대폰', 'cell phone'),
-                     ('핸드폰', 'cell phone'), ('책', 'book')]:
-        line = next(ln for ln in header.splitlines() if f"-> '{name}'" in ln)
-        assert ko in line
+def test_objects_come_from_the_parameter_not_an_alias_table(spec, env):
+    custom = PromptBuilder(spec, ['backpack', 'cup'], env, PATHS['prompts_dir'])
+    assert custom.context().splitlines()[1] == "objects = ['backpack', 'cup']"
+    assert "-> '" not in custom.api_header()    # no 'user words -> name' alias lines
 
 
 def test_full_prompt_layout(builder, env):

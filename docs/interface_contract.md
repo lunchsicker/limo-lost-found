@@ -1,24 +1,25 @@
 # limo_llm ↔ limo_executor / limo_perception / limo_interfaces 인터페이스 계약 (초안)
 
 - 상태: **DRAFT v0.1** — `limo_interfaces`, `limo_executor`, `limo_perception` 담당자 합의 전
-- 버전: `api_version 0.1.0`, `grammar_version 0.1.0`, `bundle format_version 0.1.0`, `catalog_version 0.1.0`
+- 버전: `api_version 0.1.0`, `grammar_version 0.1.0`, `bundle format_version 0.1.0`
 - 단일 명세 원천: 레포 루트 `config/`
   - `config/robot_api.yaml` — Robot API 시그니처 + 정책 문법(허용 AST 노드, 연산자, 빌트인, 실행 한도)
-  - `config/object_classes.yaml` — 한국어 별칭 → 표준 이름 → 탐지기 클래스 후보
   - `config/search_locations_sim.yaml` — 탐색 위치 **이름만** (좌표 없음)
   - `config/search_poses_sim.yaml` — 탐색 위치 좌표. **소유·설치: `limo_executor` 담당자** (LLM은 읽지 않음)
+
+탐색 대상 물체는 명세 파일이 아니라 `limo_llm` 파라미터 `objects`이다: `['handbag', 'umbrella', 'cup', 'cell phone', 'book']`. 이름은 **탐지기(COCO-80) 클래스 이름 그대로**이며, 사용자 단어 → 이름 변환은 LLM이 한다(별칭 표 없음). 목록 밖의 이름은 검증기가 `UNKNOWN_OBJECT`로 거부한다.
 
 파일별 소유자는 [`config/README.md`](../config/README.md)에 정리되어 있다.
 
 **설치와 탐색**
-- 공통 명세 3종(`robot_api.yaml`, `object_classes.yaml`, `search_locations_*.yaml`)은 `limo_policy`가 `share/limo_policy/config/`에 설치한다. 원본은 레포 루트 `config/`에 그대로 둔다.
+- 공통 명세 2종(`robot_api.yaml`, `search_locations_*.yaml`)은 `limo_policy`가 `share/limo_policy/config/`에 설치한다. 원본은 레포 루트 `config/`에 그대로 둔다.
 - `search_poses_*.yaml`은 `limo_executor`가 관리하고 설치한다.
 - `limo_interfaces`는 msg/srv/action 정의만 담당하며 설정 파일을 설치하지 않는다.
 - 경로 탐색은 `limo_policy.paths.default_config_dir()`이 한다. 순서는 ① 명시적 경로 ② 환경변수 `LIMO_CONFIG_DIR` ③ 설치된 `share/limo_policy/config` ④ `AMENT_PREFIX_PATH`의 같은 경로 ⑤ 레포 `config/`. 노드의 파일 경로 파라미터는 항상 이 탐색보다 우선한다.
 - 다른 패키지는 같은 파일을 읽어야 하며 사본을 만들지 않는다.
 
 **공용 구현 (`limo_policy`, ROS 런타임 의존 없음)**
-- `limo_policy.specs`: 위 YAML 로더(`RobotApiSpec`, `ObjectCatalog`, `SearchEnvironment`)
+- `limo_policy.specs`: 위 YAML 로더(`RobotApiSpec`, `SearchEnvironment`)
 - `limo_policy.validator.PolicyValidator`: §6 문법 검증 (limo_llm 생성 시 + executor 재검증 시 같은 코드)
 - `limo_policy.interpreter.PolicyInterpreter`: exec 없는 참조 인터프리터
 - `limo_policy.errors`: §5 결과 코드에 대응하는 실행 예외
@@ -55,7 +56,7 @@ user_command(String) ──► limo_llm ──PolicyBundle──► limo_executo
 | `target_objects[]` | list[str] | 코드에서 정적으로 확인된 표준 물체 이름 |
 | `api_version`, `grammar_version` | str | `robot_api.yaml` 버전. 불일치 시 executor는 실행을 거부해야 함 |
 | `provider`, `model` | str | 생성에 쓴 LLM |
-| `warnings[]` | list[str] | 예: 탐지기 미검증 클래스, 명령과 대상 불일치 |
+| `warnings[]` | list[str] | 생성 중 경고(예: helper 생성 관련). 없으면 빈 목록 |
 | `format_version` | str | 번들 포맷 버전 |
 
 실행 의미: helper `def`를 모두 등록한 뒤 `policy_code`를 위에서부터 실행한다. 즉 `full_source()`와 같다.
@@ -139,8 +140,8 @@ string[] warnings
 | 함수 | 반환 | 의미 / executor 구현 요구사항 |
 |---|---|---|
 | `get_search_locations()` | `list[str]` | 등록된 탐색 위치 이름. `search_locations_*.yaml`의 이름 집합에 속해야 함. 순서는 executor가 결정(예: 거리순) |
-| `get_known_objects()` | `list[str]` | `object_classes.yaml`의 표준 이름 |
-| `get_visible_obj_names()` | `list[str]` | 현재 시야에서 탐지된 표준 이름. 로봇을 움직이지 않음 |
+| `get_known_objects()` | `list[str]` | 탐색 가능한 물체 이름(= `objects`, COCO 클래스 이름) |
+| `get_visible_obj_names()` | `list[str]` | 현재 시야에서 탐지된 물체 중 `objects`에 속한 이름. 로봇을 움직이지 않음 |
 | `is_obj_visible(obj_name)` | `bool` | §4.1 |
 | `goto_loc(loc_name)` | `bool` | 이름 → 좌표 변환은 executor가 소유. 도착하면 True, Nav2 실패·타임아웃이면 False. 등록되지 않은 이름은 오류(`UNKNOWN_LOCATION`) |
 | `search_here(obj_name)` | `bool` | §4.2 |
@@ -156,7 +157,7 @@ string[] warnings
 - 다음은 False가 아니라 **오류**로 구분해야 한다.
   - 카메라 없음·프레임 타임아웃·모델 오류 → `DETECTION_ERROR`
   - 탐지기가 지원하지 않는 클래스 → `UNSUPPORTED_OBJECT`
-- 표준 이름 → 탐지기 클래스 변환은 `object_classes.yaml`의 `detector_classes`를 따른다. 예: `bag` → `backpack|handbag|suitcase` 중 하나라도 탐지되면 True.
+- `obj_name`은 탐지기 클래스 이름 그대로다(변환 없음). 예: `is_obj_visible('handbag')`는 COCO `handbag` 클래스가 탐지되면 True.
 
 ### 4.2 `search_here(obj_name)` — executor가 Navigation + Perception을 오케스트레이션
 
@@ -241,11 +242,11 @@ string[] warnings
 
 ## 8. Vision(limo_perception) 계약
 
-- 표준 대상 5종: `bag`, `umbrella`, `cup`, `cell phone`, `book`
-- `config/object_classes.yaml`의 `detector_classes`는 **COCO-80 라벨 기준 후보**이며 모두 `verified: false`이다.
-  - COCO-80에는 `bag`이 없어 `backpack`, `handbag`, `suitcase`로 매핑했다
-  - 확인할 것: 실제 사용할 모델의 정확한 클래스 문자열, 각 클래스의 탐지 성능(실내, LIMO 카메라 높이, 거리)
-  - 확인 후 `detector.name`·`verified`를 갱신한다. 미검증 상태에서는 `limo_llm`이 매 번들에 경고를 남긴다
+- 탐색 대상 5종: `handbag`, `umbrella`, `cup`, `cell phone`, `book` — **COCO-80 클래스 이름 그대로**(클래스 이름은 팀에서 확인함). perception은 탐지 결과의 클래스 이름을 변환 없이 돌려주면 된다.
+  - 데모 가방은 COCO `handbag`으로 인식되는 물체여야 한다(백팩은 `backpack`이라 해당하지 않음)
+  - 아직 확인하지 않은 것: 각 클래스의 탐지 성능(실내, LIMO 카메라 높이, 거리)
+  - COCO 모델은 가구(`couch`, `chair`, `refrigerator` 등)도 탐지하므로, `get_visible_obj_names()`는 `objects`에 속한 이름만 돌려준다
+  - 목록을 바꾸면 `limo_llm/config/llm_params.yaml`의 `objects`와 executor의 `get_known_objects()`를 함께 바꾼다
 - executor가 `is_obj_visible`·`get_visible_obj_names`를 구현할 수 있도록 다음 중 하나를 합의한다.
   - (a) 토픽: `vision_msgs/Detection2DArray`(Humble에 설치되어 있음 확인), 예: `/limo_perception/detections`. header stamp는 원본 이미지 stamp. 상태·오류는 별도 토픽
   - (b) 서비스: 요청은 클래스 목록·관찰 시간, 응답은 `status`(OK / CAMERA_ERROR / MODEL_ERROR / UNSUPPORTED_CLASS)와 탐지 목록(class, score, bbox, stamp)

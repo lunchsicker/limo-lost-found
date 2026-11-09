@@ -1,8 +1,8 @@
 """
 One Robot API contract across prompt, validator, interpreter and mock robot.
 
-Also covers the object / location boundaries: the LLM uses canonical object names and
-semantic location names only; attributes (colour, size) are not verified by the
+Also covers the object / location boundaries: the LLM uses the object names in `objects`
+(COCO classes) and semantic location names only; attributes (colour, size) are not verified by the
 detector, and location -> pose resolution stays in the executor (mock here).
 """
 
@@ -19,8 +19,8 @@ import yaml
 
 
 @pytest.fixture
-def builder(spec, catalog, env):
-    return PromptBuilder(spec, catalog, env, PATHS['prompts_dir'])
+def builder(spec, objects, env):
+    return PromptBuilder(spec, objects, env, PATHS['prompts_dir'])
 
 
 def prompt_api_names(builder):
@@ -60,10 +60,10 @@ def test_prompt_never_contains_coordinates(builder):
         assert f'{x}, {y}' not in full and f'{x:.2f}, {y:.2f}' not in full
 
 
-def test_mock_scenario_matches_shared_specs(catalog, env):
+def test_mock_scenario_matches_shared_specs(objects, env):
     s = MockScenario.from_yaml(default_package_dir('config') + '/mock_scenario.yaml')
     assert s.locations == env.locations
-    assert s.known_objects == catalog.names
+    assert s.known_objects == objects
 
 
 # ---------------------------------------------------------------- objects
@@ -87,11 +87,11 @@ def test_attribute_phrase_as_object_name_is_rejected(make_generator):
     assert 'UNKNOWN_OBJECT' in r.error_message
 
 
-@pytest.mark.parametrize('command, target', [
-    ('백팩 찾아줘.', 'bag'), ('스마트폰 어디 있어?', 'cell phone'), ('머그컵 찾아줘.', 'cup'),
-])
-def test_alias_resolves_to_canonical_name(catalog, command, target):
-    assert catalog.resolve_from_text(command) == [target]
+def test_launch_params_objects_match_default(objects):
+    # llm_params.yaml (limo_llm; launch passes it to the mock executor) = DEFAULT_OBJECTS.
+    params = yaml.safe_load(open(default_package_dir('config') + '/llm_params.yaml',
+                                 encoding='utf-8'))
+    assert params['limo_llm']['ros__parameters']['objects'] == objects
 
 
 # ---------------------------------------------------------------- locations
@@ -104,23 +104,23 @@ def _bundle(make_generator, code):
     return r.bundle
 
 
-def test_valid_semantic_location(make_generator, spec, catalog, env):
+def test_valid_semantic_location(make_generator, spec, objects, env):
     b = _bundle(make_generator, "if goto_loc('sofa'):\n  x = search_here('cup')\n")
-    robot = MockRobot(MockScenario(env.locations, catalog.names,
+    robot = MockRobot(MockScenario(env.locations, objects,
                                    placements={'cup': ('sofa', 1)}))
-    res = run_bundle(b, robot, spec, catalog.names, env.locations)
+    res = run_bundle(b, robot, spec, objects, env.locations)
     assert res.visited_locations == ['sofa']
     assert [c[:2] for c in res.api_sequence] == [('goto_loc', 'sofa'), ('search_here', 'cup')]
 
 
 def test_location_unknown_to_executor_is_an_error_not_a_remap(make_generator, spec,
-                                                              catalog, env):
+                                                              objects, env):
     # The prompt/validator know 'sofa', but the executor's own mapping does not:
     # the executor raises UNKNOWN_LOCATION instead of driving somewhere else.
     b = _bundle(make_generator, "if goto_loc('sofa'):\n  x = search_here('cup')\n")
     others = [loc for loc in env.locations if loc != 'sofa']
-    robot = MockRobot(MockScenario(others, catalog.names))
-    res = run_bundle(b, robot, spec, catalog.names, env.locations)
+    robot = MockRobot(MockScenario(others, objects))
+    res = run_bundle(b, robot, spec, objects, env.locations)
     assert res.outcome == 'UNKNOWN_LOCATION' and res.visited_locations == []
     assert not any(c[0] in ('detect', 'search_here') for c in res.calls)
 

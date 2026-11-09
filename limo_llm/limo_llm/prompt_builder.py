@@ -8,9 +8,10 @@ Prompt layout (same order as the original ``LMP.build_prompt``)::
     <context: locations = [...] / objects = [...]>              <- runtime environment
     # <user command>.                                           <- query
 
-The original prompts only had the import lines. The signature/return-value comments,
-the Korean object aliases and the rule comments are additions required for this
-project (documented in docs/limo_llm_design.md).
+The original prompts only had the import lines. The signature/return-value comments and
+the rule comments are additions required for this project (docs/limo_llm_design.md).
+Object names are the detector's COCO class names; the LLM maps the user's words to them
+(no alias table).
 """
 
 import os
@@ -26,9 +27,9 @@ def read_text(path):
 
 class PromptBuilder:
 
-    def __init__(self, spec, catalog, env, prompts_dir):
+    def __init__(self, spec, objects, env, prompts_dir):
         self.spec = spec
-        self.catalog = catalog
+        self.objects = list(objects)
         self.env = env
         self.prompts_dir = prompts_dir
         self.templates = {k: read_text(os.path.join(prompts_dir, v)).strip()
@@ -54,17 +55,12 @@ class PromptBuilder:
             lines.append(f'#   {fn.signature}: {fn.description}')
         return lines
 
-    def object_lines(self):
-        lines = ['# Searchable objects (user words -> name to use in code):']
-        for obj in self.catalog.objects.values():
-            words = ', '.join(obj.aliases_ko + obj.aliases_en)
-            lines.append(f"#   {words} -> '{obj.name}'")
-        return lines
-
     def rule_lines(self):
         return [
             '# Rules:',
             '#   Use only location names from `locations` and object names from `objects`.',
+            "#   Names in `objects` are detector class names: map the user's (Korean) words",
+            '#   to one of them. Never write any other object name.',
             '#   Never invent locations or coordinates. The user usually does not know where',
             '#   the object is: search the registered locations with get_search_locations().',
             '#   Only look for an object after goto_loc() returned True. Check the current',
@@ -79,11 +75,11 @@ class PromptBuilder:
     def api_header(self):
         return '\n'.join(['# Python robot policy script for a lost-and-found search robot.']
                          + self.import_lines() + [''] + self.api_doc_lines()
-                         + self.object_lines() + self.rule_lines())
+                         + self.rule_lines())
 
     def context(self):
         """Runtime environment as Python lines (CaP: ``objects = [...]``)."""
-        return f'locations = {self.env.locations!r}\nobjects = {self.catalog.names!r}'
+        return f'locations = {self.env.locations!r}\nobjects = {self.objects!r}'
 
     # ------------------------------------------------------------------ prompts
 

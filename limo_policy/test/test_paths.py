@@ -33,8 +33,8 @@ def test_env_var_before_installed_and_source(tmp_path, clean_env):
     env_dir = make_config(tmp_path, 'env')
     clean_env.setenv(paths.ENV_VAR, env_dir)
     assert paths.default_config_dir() == env_dir
-    expected = os.path.join(env_dir, 'object_classes.yaml')
-    assert paths.config_file('object_classes.yaml') == expected
+    expected = os.path.join(env_dir, 'search_locations_sim.yaml')
+    assert paths.config_file('search_locations_sim.yaml') == expected
 
 
 def test_wrong_explicit_or_env_dir_does_not_fall_back(tmp_path, clean_env):

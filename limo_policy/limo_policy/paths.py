@@ -69,5 +69,5 @@ def default_config_dir(explicit=None):
 
 
 def config_file(name, config_dir=None):
-    """Return the path of a shared spec file such as ``object_classes.yaml``."""
+    """Return the path of a shared spec file such as ``robot_api.yaml``."""
     return os.path.join(default_config_dir(config_dir), name)

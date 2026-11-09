@@ -29,7 +29,7 @@ responses:
   - match: '가방'
     completion: |
       say('가방을 찾아볼게요.')
-      found_loc = find_obj_in_locs('bag', get_search_locations())
+      found_loc = find_obj_in_locs('handbag', get_search_locations())
       if found_loc:
         say(f'{found_loc}에서 가방을 찾았어요.')
       else:

@@ -6,7 +6,7 @@ LIMO 분실물 탐색 로봇의 **공용 정책 코어**입니다. 순수 Python
 
 | 모듈 | 내용 |
 |---|---|
-| `specs` | `config/robot_api.yaml`, `object_classes.yaml`, `search_locations_*.yaml` 로더 |
+| `specs` | `config/robot_api.yaml`, `search_locations_*.yaml` 로더 |
 | `paths` | 공통 명세 디렉터리 찾기: 명시적 경로 → `$LIMO_CONFIG_DIR` → `share/limo_policy/config` → `AMENT_PREFIX_PATH` → 레포 `config/` |
 | `validator` | 정책 문법 서브셋 정적 검증 (`PolicyValidator.check_bundle`) |
 | `interpreter` | `exec` 없는 참조 인터프리터 (`PolicyInterpreter`) |
@@ -14,7 +14,7 @@ LIMO 분실물 탐색 로봇의 **공용 정책 코어**입니다. 순수 Python
 | `bundle` | `PolicyBundle`, `HelperFunction` (limo_llm → limo_executor) |
 | `call_graph` | helper 호출 그래프, 순환 탐지, 의존성 순서 |
 
-- 설치: 레포 루트 `config/`의 `robot_api.yaml`, `object_classes.yaml`, `search_locations_*.yaml`을 `share/limo_policy/config/`에 설치합니다. `search_poses_*.yaml`은 `limo_executor`가 설치합니다.
+- 설치: 레포 루트 `config/`의 `robot_api.yaml`, `search_locations_*.yaml`을 `share/limo_policy/config/`에 설치합니다. `search_poses_*.yaml`은 `limo_executor`가 설치합니다.
 - 계약: [`../docs/interface_contract.md`](../docs/interface_contract.md)
 
 ```bash
@@ -24,7 +24,7 @@ cd limo_policy && python3 -m pytest test
 
 ```python
 from limo_policy.paths import config_file
-from limo_policy.specs import RobotApiSpec, ObjectCatalog, SearchEnvironment
+from limo_policy.specs import RobotApiSpec, SearchEnvironment
 from limo_policy.validator import PolicyValidator
 from limo_policy.interpreter import PolicyInterpreter
 from limo_policy.bundle import PolicyBundle

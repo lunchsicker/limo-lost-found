@@ -21,7 +21,7 @@ from limo_llm.resources import default_package_dir
 from limo_policy.bundle import HelperFunction, PolicyBundle
 from limo_policy.call_graph import build_call_graph, called_names, topological_order
 from limo_policy.paths import default_config_dir
-from limo_policy.specs import ObjectCatalog, RobotApiSpec, SearchEnvironment
+from limo_policy.specs import RobotApiSpec, SearchEnvironment
 from limo_policy.validator import PolicyValidationError, PolicyValidator
 
 
@@ -42,6 +42,20 @@ class GenerationResult:
 
     def to_json(self, indent=None):
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=indent)
+
+
+# Searchable objects for the demo. The names are the detector's COCO class names, so no
+# word -> class table is needed: the LLM maps the user's Korean words to one of these, and
+# the validator rejects any other object name. Overridden by the ROS parameter `objects`.
+DEFAULT_OBJECTS = ('handbag', 'umbrella', 'cup', 'cell phone', 'book')
+
+
+def check_objects(objects):
+    """Return ``objects`` as a list of unique, non-empty names (ValueError otherwise)."""
+    names = [str(o).strip() for o in (objects or [])]
+    if not names or not all(names) or len(set(names)) != len(names):
+        raise ValueError(f'objects must be unique non-empty names, got {objects!r}')
+    return names
 
 
 # Same values as cfg_tabletop in the original notebook, except the extra stop token for
@@ -100,9 +114,9 @@ def split_inline_defs(code):
 
 class PolicyGenerator:
 
-    def __init__(self, spec, catalog, env, prompts_dir, llm, cfg=None, log=None):
+    def __init__(self, spec, objects, env, prompts_dir, llm, cfg=None, log=None):
         self.spec = spec
-        self.catalog = catalog
+        self.objects = check_objects(objects)
         self.env = env
         self.llm = llm
         self.cfg = merge_cfg(DEFAULT_CFG, cfg)
@@ -112,17 +126,17 @@ class PolicyGenerator:
         if fcfg['max_functions'] is None:
             fcfg['max_functions'] = spec.limits.get('max_helper_functions', 8)
         self._log = log or (lambda header, body='': None)
-        self.builder = PromptBuilder(spec, catalog, env, prompts_dir)
-        self.validator = PolicyValidator(spec, catalog.names, env.locations)
+        self.builder = PromptBuilder(spec, self.objects, env, prompts_dir)
+        self.validator = PolicyValidator(spec, self.objects, env.locations)
         self.lmp_fgen = LMPFGen(fcfg, self.builder.fgen_base_prompt(), llm, self.validator,
                                 log=self._log)
         self.lmp_policy = LMP('policy_ui', self.cfg['policy'], self.builder.policy_base_prompt(),
                               self.lmp_fgen, llm, self.validator, log=self._log)
 
     @classmethod
-    def from_files(cls, robot_api_file, object_classes_file, search_locations_file,
-                   prompts_dir, llm, cfg=None, log=None):
-        return cls(RobotApiSpec.load(robot_api_file), ObjectCatalog.load(object_classes_file),
+    def from_files(cls, robot_api_file, search_locations_file, prompts_dir, llm,
+                   objects=DEFAULT_OBJECTS, cfg=None, log=None):
+        return cls(RobotApiSpec.load(robot_api_file), objects,
                    SearchEnvironment.load(search_locations_file), prompts_dir, llm, cfg, log)
 
     # ------------------------------------------------------------------ public
@@ -192,7 +206,7 @@ class PolicyGenerator:
             helpers=helpers, target_objects=targets,
             api_version=self.spec.api_version, grammar_version=self.spec.grammar_version,
             provider=getattr(self.llm, 'provider', ''), model=getattr(self.llm, 'model', ''),
-            warnings=list(self.lmp_fgen.warnings) + self._warnings(command, targets))
+            warnings=list(self.lmp_fgen.warnings))
         return bundle
 
     @staticmethod
@@ -206,17 +220,6 @@ class PolicyGenerator:
                 todo.extend(graph[n] - seen)
         return seen
 
-    def _warnings(self, command, targets):
-        out = []
-        mentioned = self.catalog.resolve_from_text(command)
-        if mentioned and targets and set(mentioned) != set(targets):
-            out.append(f'command mentions {mentioned} but the policy targets {targets}')
-        unverified = [t for t in targets if not self.catalog.objects[t].verified]
-        if unverified:
-            out.append(f'detector support NOT verified for {unverified} '
-                       f'(detector: {self.catalog.detector_name})')
-        return out
-
 
 def default_paths(config_dir=None):
     """
@@ -228,7 +231,6 @@ def default_paths(config_dir=None):
     common = default_config_dir(config_dir)
     return {
         'robot_api_file': os.path.join(common, 'robot_api.yaml'),
-        'object_classes_file': os.path.join(common, 'object_classes.yaml'),
         'search_locations_file': os.path.join(common, 'search_locations_sim.yaml'),
         'prompts_dir': default_package_dir('prompts'),
     }

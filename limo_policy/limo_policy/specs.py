@@ -2,8 +2,10 @@
 Loaders for the shared specification files (no ROS dependency).
 
 * ``robot_api.yaml``          -> :class:`RobotApiSpec`  (API + policy grammar)
-* ``object_classes.yaml``     -> :class:`ObjectCatalog` (Korean aliases -> canonical names)
 * ``search_locations_*.yaml`` -> :class:`SearchEnvironment` (location names only)
+
+The searchable object names are not a spec file: they are the detector (COCO) class
+names, passed in by the caller (limo_llm parameter ``objects``; executor: perception).
 """
 
 from dataclasses import dataclass, field
@@ -117,83 +119,6 @@ class RobotApiSpec:
         """
         return tuple(f.name for f in self.functions.values()
                      if not f.params and f.returns.startswith('list'))
-
-
-# --------------------------------------------------------------------------- objects
-
-
-@dataclass(frozen=True)
-class ObjectClass:
-    name: str
-    aliases_ko: Tuple[str, ...]
-    aliases_en: Tuple[str, ...]
-    detector_classes: Tuple[str, ...]
-    verified: bool
-
-
-@dataclass
-class ObjectCatalog:
-    version: str
-    detector_name: str
-    detector_verified: bool
-    objects: Dict[str, ObjectClass]
-    source_path: Optional[str] = None
-
-    @classmethod
-    def load(cls, path):
-        data = _load_yaml(path)
-        try:
-            objects = {}
-            for name, entry in data['objects'].items():
-                objects[name] = ObjectClass(
-                    name=name,
-                    aliases_ko=tuple(entry.get('aliases_ko') or []),
-                    aliases_en=tuple(entry.get('aliases_en') or []),
-                    detector_classes=tuple(entry.get('detector_classes') or []),
-                    verified=bool(entry.get('verified', False)))
-            detector = data.get('detector') or {}
-            return cls(version=str(data.get('catalog_version', '0')),
-                       detector_name=str(detector.get('name', 'UNCONFIRMED')),
-                       detector_verified=bool(detector.get('verified', False)),
-                       objects=objects, source_path=path)
-        except (KeyError, TypeError, AttributeError) as e:
-            raise SpecError(f'malformed object catalog {path}: {e!r}') from e
-
-    @property
-    def names(self):
-        return list(self.objects)
-
-    def detector_classes_for(self, name):
-        """Detector class candidates for a canonical name (KeyError if unknown)."""
-        return list(self.objects[name].detector_classes)
-
-    def resolve_from_text(self, text):
-        """
-        Canonical names whose aliases occur in ``text`` (longest alias wins on overlap).
-
-        Used only as a consistency check on what the LLM generated; it does not replace
-        the LLM's interpretation of the command.
-        """
-        lowered = text.lower()
-        hits = []
-        for obj in self.objects.values():
-            for alias in sorted(obj.aliases_ko + obj.aliases_en + (obj.name,),
-                                key=len, reverse=True):
-                pos = lowered.find(alias.lower())
-                if pos >= 0:
-                    hits.append((pos, -len(alias), obj.name))
-                    break
-        hits.sort()
-        found = []
-        covered = []
-        for pos, neg_len, name in hits:
-            span = (pos, pos - neg_len)
-            if any(s <= span[0] < e for s, e in covered):
-                continue
-            covered.append(span)
-            if name not in found:
-                found.append(name)
-        return found
 
 
 # --------------------------------------------------------------------------- locations

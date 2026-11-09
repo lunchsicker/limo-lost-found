@@ -7,14 +7,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PKG = os.path.dirname(HERE)
 sys.path.insert(0, PKG)   # run from the source tree without colcon
 
-from limo_policy.specs import ObjectCatalog, RobotApiSpec, SearchEnvironment  # noqa: E402
+from limo_policy.specs import RobotApiSpec, SearchEnvironment  # noqa: E402
 from limo_policy.validator import PolicyValidator  # noqa: E402
 import pytest  # noqa: E402,I100
 
 COMMON = os.path.join(os.path.dirname(PKG), 'config')
+# Searchable objects = COCO class names (limo_llm parameter `objects`).
+OBJECTS = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 PATHS = {
     'robot_api_file': os.path.join(COMMON, 'robot_api.yaml'),
-    'object_classes_file': os.path.join(COMMON, 'object_classes.yaml'),
     'search_locations_file': os.path.join(COMMON, 'search_locations_sim.yaml'),
 }
 
@@ -70,8 +71,8 @@ def spec():
 
 
 @pytest.fixture(scope='session')
-def catalog():
-    return ObjectCatalog.load(PATHS['object_classes_file'])
+def objects():
+    return list(OBJECTS)
 
 
 @pytest.fixture(scope='session')
@@ -80,5 +81,5 @@ def env():
 
 
 @pytest.fixture
-def validator(spec, catalog, env):
-    return PolicyValidator(spec, catalog.names, env.locations)
+def validator(spec, objects, env):
+    return PolicyValidator(spec, objects, env.locations)

@@ -29,7 +29,7 @@ class PolicyBundle:
     command: str
     policy_code: str                      # context lines + generated policy (CaP style)
     helpers: List[HelperFunction]         # dependency order: callees before callers
-    target_objects: List[str]             # canonical names used as literals in the code
+    target_objects: List[str]             # object names (from `objects`) used as literals
     api_version: str
     grammar_version: str
     provider: str = ''

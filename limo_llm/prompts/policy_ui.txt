@@ -1,7 +1,7 @@
 {api_header}
 
 locations = ['kitchen_table', 'sofa', 'desk', 'shoe_rack']
-objects = ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 우산 찾아줘.
 target = 'umbrella'
 found = False
@@ -19,7 +19,7 @@ for location in get_search_locations():
 if not found:
   say('모든 탐색 위치를 확인했지만 우산을 찾지 못했습니다.')
 locations = ['kitchen_table', 'sofa', 'desk', 'shoe_rack']
-objects = ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 핸드폰 잃어버렸어. 찾아줘.
 say('휴대폰을 찾아볼게요.')
 found_loc = find_obj_in_locs('cell phone', get_search_locations())
@@ -28,28 +28,28 @@ if found_loc:
 else:
   say('모든 탐색 위치를 확인했지만 휴대폰을 찾지 못했어요.')
 locations = ['fridge', 'tv_stand', 'bed', 'entrance']
-objects = ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 지금 앞에 컵 보여?
 if is_obj_visible('cup'):
   say('네, 지금 앞에 컵이 보여요.')
 else:
   say('아니요, 지금은 컵이 보이지 않아요.')
 locations = ['fridge', 'tv_stand', 'bed', 'entrance']
-objects = ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 지갑 찾아줘.
 say('죄송해요. 지갑은 아직 찾을 수 있는 물체가 아니에요. 가방, 우산, 컵, 휴대폰, 책을 찾을 수 있어요.')
 locations = ['kitchen_table', 'sofa', 'desk', 'shoe_rack']
-objects = ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 소파 쪽에 가방 두고 온 것 같은데 찾아줘.
 say('소파부터 가방을 찾아볼게요.')
 loc_names = order_locs_by_hint(get_search_locations(), 'sofa')
-found_loc = find_obj_in_locs('bag', loc_names)
+found_loc = find_obj_in_locs('handbag', loc_names)
 if found_loc:
   say(f'{found_loc}에서 가방을 찾았어요.')
 else:
   say('모든 탐색 위치를 확인했지만 가방을 찾지 못했어요.')
 locations = ['fridge', 'tv_stand', 'bed', 'entrance']
-objects = ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 화장실에 책 있는지 찾아봐.
 say('화장실은 등록된 탐색 위치가 아니에요. 등록된 위치를 모두 찾아볼게요.')
 found_loc = find_obj_in_locs('book', get_search_locations())
@@ -58,7 +58,7 @@ if found_loc:
 else:
   say('모든 탐색 위치를 확인했지만 책을 찾지 못했어요.')
 locations = ['fridge', 'tv_stand', 'bed', 'entrance']
-objects = ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 티비 앞에 컵 있는지 봐줘.
 say('TV 앞에서 컵을 찾아볼게요.')
 if goto_loc('tv_stand'):
@@ -73,7 +73,7 @@ if goto_loc('tv_stand'):
 else:
   say('TV 앞으로 이동하지 못했어요.')
 locations = ['kitchen_table', 'sofa', 'desk', 'shoe_rack']
-objects = ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 우산이랑 컵 둘 다 찾아줘.
 say('우산과 컵을 차례로 찾아볼게요.')
 for target in ['umbrella', 'cup']:
@@ -83,7 +83,7 @@ for target in ['umbrella', 'cup']:
   else:
     say(f'{target}: 찾지 못했어요.')
 locations = ['fridge', 'tv_stand', 'bed', 'entrance']
-objects = ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 어두우니까 불 켜고 내 책 찾아줘.
 led_ok = led_on()
 if led_ok:
@@ -98,7 +98,7 @@ else:
 if led_ok:
   led_off()
 locations = ['kitchen_table', 'sofa', 'desk', 'shoe_rack']
-objects = ['bag', 'umbrella', 'cup', 'cell phone', 'book']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 지금 보이는 물건 뭐 있어?
 obj_names = get_visible_obj_names()
 if len(obj_names) == 0:
