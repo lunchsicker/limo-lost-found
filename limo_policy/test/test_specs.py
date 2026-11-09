@@ -1,8 +1,7 @@
-"""Spec loaders, object catalog and LLM client helpers."""
+"""Spec loaders and object catalog (moved from limo_llm/test/test_specs_and_client.py)."""
 
 from conftest import PATHS
-from limo_llm.llm_client import clean_completion, create_llm_client, LLMError, MockLLMClient
-from limo_llm.specs import SearchEnvironment, SpecError
+from limo_policy.specs import SearchEnvironment, SpecError
 import pytest
 import yaml
 
@@ -40,26 +39,3 @@ def test_bad_location_file_rejected(tmp_path):
     p.write_text('locations:\n  - name: "x y"\n')
     with pytest.raises(SpecError):
         SearchEnvironment.load(str(p))
-
-
-def test_clean_completion():
-    raw = "```python\nsay('a')\n# next command\nsay('b')\n```"
-    assert clean_completion(raw, ['#']) == "say('a')"
-    assert clean_completion("# echo.\nsay('a')\n", ['#']) == "say('a')"
-    assert clean_completion("say('a')\nobjects = ['x']\n", ['#', 'objects = [']) == "say('a')"
-
-
-def test_mock_client_records_calls():
-    llm = MockLLMClient([('우산', 'x')])
-    assert llm.complete('header\n# 우산 찾아줘.', stop=['#']) == 'x'
-    assert llm.calls[0]['query'] == '# 우산 찾아줘.'
-    with pytest.raises(LLMError):
-        llm.complete('# 모르는 명령')
-
-
-def test_openai_provider_requires_key(monkeypatch):
-    monkeypatch.delenv('OPENAI_API_KEY', raising=False)
-    with pytest.raises(LLMError):
-        create_llm_client('openai', model='gpt-4o-mini')
-    with pytest.raises(LLMError):
-        create_llm_client('unknown')

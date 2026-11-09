@@ -6,11 +6,12 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG = os.path.dirname(HERE)
 sys.path.insert(0, PKG)   # run from the source tree without colcon
+sys.path.insert(1, os.path.join(os.path.dirname(PKG), 'limo_policy'))
 
 from limo_llm.llm_client import MockLLMClient  # noqa: E402
 from limo_llm.policy_generator import PolicyGenerator  # noqa: E402
-from limo_llm.policy_validator import PolicyValidator  # noqa: E402
-from limo_llm.specs import ObjectCatalog, RobotApiSpec, SearchEnvironment  # noqa: E402
+from limo_policy.specs import ObjectCatalog, RobotApiSpec, SearchEnvironment  # noqa: E402
+from limo_policy.validator import PolicyValidator  # noqa: E402
 import pytest  # noqa: E402,I100
 
 COMMON = os.path.join(os.path.dirname(PKG), 'config')

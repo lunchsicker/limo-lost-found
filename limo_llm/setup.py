@@ -4,13 +4,7 @@ import os
 from setuptools import find_packages, setup
 
 package_name = 'limo_llm'
-# Shared specs live in the repository-level config/ directory (single source of truth for
-# limo_llm, limo_executor and limo_perception); they are installed with this package.
-# data_files must be relative to the package directory (setup.py is run from there).
-# Pose files (search_poses_*.yaml) are for limo_executor only and are NOT installed here, so
-# coordinates never reach the LLM side.
-common_config = sorted(p for p in glob(os.path.join('..', 'config', '*.yaml'))
-                       if not os.path.basename(p).startswith('search_poses_'))
+# Shared specs (config/robot_api.yaml, ...) are installed by limo_policy, not here.
 
 setup(
     name=package_name,
@@ -23,7 +17,6 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'prompts'), glob('prompts/*.txt')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
-        (os.path.join('share', package_name, 'config', 'common'), common_config),
     ],
     install_requires=['setuptools', 'PyYAML'],
     zip_safe=True,

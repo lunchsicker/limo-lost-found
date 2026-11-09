@@ -20,7 +20,6 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     share = get_package_share_directory('limo_llm')
-    common = os.path.join(share, 'config', 'common')
     params_file = os.path.join(share, 'config', 'llm_params.yaml')
 
     provider = LaunchConfiguration('provider')
@@ -34,8 +33,9 @@ def generate_launch_description():
         DeclareLaunchArgument('model_name', default_value='gpt-4o-mini'),
         DeclareLaunchArgument('output_mode', default_value='debug_topic',
                               choices=['debug_topic', 'action', 'none']),
-        DeclareLaunchArgument('search_locations_file',
-                              default_value=os.path.join(common, 'search_locations_sim.yaml')),
+        DeclareLaunchArgument('search_locations_file', default_value='',
+                              description='Empty: search_locations_sim.yaml found by '
+                                          'limo_policy.paths ($LIMO_CONFIG_DIR first)'),
         DeclareLaunchArgument('mock_responses_file',
                               default_value=os.path.join(share, 'config',
                                                          'mock_llm_responses.yaml')),

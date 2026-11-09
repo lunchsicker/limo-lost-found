@@ -21,7 +21,7 @@ import threading
 from limo_llm.llm_client import create_llm_client, LLMError
 from limo_llm.policy_generator import default_paths, PolicyGenerator
 from limo_llm.prompt_builder import read_text
-from limo_llm.specs import SpecError
+from limo_policy.specs import SpecError
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
@@ -64,7 +64,9 @@ class LlmNode(Node):
             raise ValueError(f'output_mode must be one of {OUTPUT_MODES}, got {mode!r}')
         self.output_mode = mode
 
-        prompts_dir = g('prompts_dir').value
+        # Empty path parameters fall back to the defaults (limo_policy.paths / share dir).
+        spec_path = {k: g(k).value or defaults[k] for k in defaults}
+        prompts_dir = spec_path['prompts_dir']
         llm = create_llm_client(
             g('provider').value, model=g('model_name').value,
             api_key=g('openai_api_key').value or None,
@@ -82,8 +84,8 @@ class LlmNode(Node):
             'max_attempts': int(g('max_attempts').value),
         }
         self.generator = PolicyGenerator.from_files(
-            g('robot_api_file').value, g('object_classes_file').value,
-            g('search_locations_file').value, prompts_dir, llm, cfg=cfg, log=self._log_code)
+            spec_path['robot_api_file'], spec_path['object_classes_file'],
+            spec_path['search_locations_file'], prompts_dir, llm, cfg=cfg, log=self._log_code)
         self.info(f'LLM provider={llm.provider} model={llm.model} output_mode={mode}')
         self.info(f'locations={self.generator.env.locations}')
         self.info(f'objects={self.generator.catalog.names} '

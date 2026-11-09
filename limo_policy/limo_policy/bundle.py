@@ -1,14 +1,15 @@
 """
 PolicyBundle: everything the executor needs to run one generated policy.
 
-The bundle carries Python SOURCE only. limo_llm never executes it. See
-docs/interface_contract.md for the field-by-field contract with limo_executor.
+The bundle carries Python SOURCE only: limo_llm creates it and never executes it,
+limo_executor re-validates and runs it. See docs/interface_contract.md for the
+field-by-field contract.
 """
 
 from dataclasses import asdict, dataclass, field
 import json
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 BUNDLE_FORMAT_VERSION = '0.1.0'
 
@@ -61,20 +62,3 @@ class PolicyBundle:
     @classmethod
     def from_json(cls, text):
         return cls.from_dict(json.loads(text))
-
-
-@dataclass
-class GenerationResult:
-    success: bool
-    bundle: Optional[PolicyBundle] = None
-    error_code: str = ''        # LLM_ERROR | VALIDATION_ERROR | FGEN_ERROR | INVALID_REQUEST
-    error_message: str = ''
-    raw_completion: str = ''    # last policy completion, for debugging rejected code
-
-    def to_dict(self):
-        d = asdict(self)
-        d['bundle'] = self.bundle.to_dict() if self.bundle else None
-        return d
-
-    def to_json(self, indent=None):
-        return json.dumps(self.to_dict(), ensure_ascii=False, indent=indent)

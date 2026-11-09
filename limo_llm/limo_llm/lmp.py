@@ -18,7 +18,7 @@ Changes (documented in docs/limo_llm_design.md):
 
 from limo_llm.function_parser import find_undefined_functions
 from limo_llm.llm_client import clean_completion
-from limo_llm.policy_validator import PolicyValidationError, ValidationIssue
+from limo_policy.validator import PolicyValidationError, ValidationIssue
 
 
 class LMP:

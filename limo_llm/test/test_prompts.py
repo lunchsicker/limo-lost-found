@@ -5,8 +5,8 @@ import re
 
 from conftest import PATHS
 from limo_llm.function_parser import find_undefined_functions
-from limo_llm.policy_validator import PolicyValidator
 from limo_llm.prompt_builder import API_PLACEHOLDER, PromptBuilder
+from limo_policy.validator import PolicyValidator
 import pytest
 
 

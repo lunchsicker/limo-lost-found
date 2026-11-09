@@ -26,14 +26,15 @@ PolicyBundle  ──(debug topic | ExecutePolicy action)──►  limo_executor
 |---|---|---|
 | `lmp.py` | `LMP` | 프롬프트 구성, LLM 호출, include_context, maintain_session. **exec 제거** |
 | `lmp_fgen.py` | `LMPFGen` | `# define function: <sig>.` 질의, 재귀 helper 생성. **exec 제거**, 소스 수집 |
-| `function_parser.py` | `FunctionParser`, `var_exists` | 원본 Call/Assign 수집 로직 유지. `var_exists`(eval)는 이름 집합 조회로 대체. 호출 그래프·순환 탐지 추가 |
+| `function_parser.py` | `FunctionParser`, `var_exists` | 원본 Call/Assign 수집 로직 유지. `var_exists`(eval)는 이름 집합 조회로 대체 |
+| `limo_policy/call_graph.py` | (없음) | 호출 그래프·순환 탐지·의존성 순서 (limo_policy로 분리) |
 | `policy_generator.py` | `setup_LMP` | LMP·LMPFGen 구성, 재시도, 번들 생성 |
 | `prompt_builder.py` | 프롬프트 import 줄 / `{variable_vars_imports}` | `robot_api.yaml`에서 API 헤더 생성 |
 | `llm_client.py` | `openai.Completion` | Chat API(OpenAI) + Mock |
-| `policy_validator.py` | `exec_safe`의 문자열 금지 | 문법 서브셋 정적 검증(실행 안전 보장 아님) |
+| `limo_policy/validator.py` | `exec_safe`의 문자열 금지 | 문법 서브셋 정적 검증(실행 안전 보장 아님). executor 재검증과 같은 구현 |
 | `prompts/policy_ui.txt` | `tabletop_ui.txt` / `mobile_ui.txt` | 한국어 명령 few-shot 10개 |
 | `prompts/fgen.txt` | `fgen.txt` | helper 정의 few-shot 6개 + example 2개 |
-| `mock/policy_interpreter.py` | (없음) | 테스트용 exec 없는 참조 인터프리터 |
+| `limo_policy/interpreter.py` | (없음) | exec 없는 참조 인터프리터 (mock executor와 limo_executor가 공용) |
 
 ## 3. 공식 구현과 다른 부분
 

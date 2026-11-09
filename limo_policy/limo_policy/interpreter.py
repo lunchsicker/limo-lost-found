@@ -1,30 +1,18 @@
 """
-Reference interpreter for the policy grammar (tests / mock executor only).
+Reference interpreter for the policy grammar (shared by limo_executor and the mock).
 
 Walks the AST of a validated PolicyBundle and evaluates only the grammar subset in
 config/robot_api.yaml. It never calls ``exec``/``eval``/``compile``. Robot API calls go
 to the injected callables. Step, loop-iteration and call-depth budgets are enforced, and
 the cancel flag is checked before every statement.
 
-This shows limo_executor one possible implementation of the contract; it is not the
-production executor and has not been reviewed as a security boundary.
+limo_executor may run bundles with it. It has not been reviewed as a security
+boundary; the executor stays responsible for runtime limits, cancellation and timeouts.
 """
 
 import ast
 
-
-class PolicyRuntimeError(Exception):
-    """Policy execution stopped. ``code`` matches the ExecutePolicy result codes."""
-
-    def __init__(self, code, message):
-        self.code = code
-        super().__init__(f'[{code}] {message}')
-
-
-class PolicyCanceled(PolicyRuntimeError):
-
-    def __init__(self, message='canceled'):
-        super().__init__('CANCELED', message)
+from limo_policy.errors import PolicyCanceled, PolicyRuntimeError
 
 
 class _Break(Exception):

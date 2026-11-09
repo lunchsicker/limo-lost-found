@@ -1,9 +1,9 @@
 """
 Static validation of generated policy code against the shared grammar subset.
 
-This is an early filter in limo_llm (reject / report before anything is sent to the
-robot). It is NOT a sandbox: limo_executor must re-validate the bundle and run it with
-its own restricted interpreter, which is the final safety authority.
+limo_llm uses it as an early filter (reject / report before anything is sent to the
+robot); limo_executor uses the same class to re-validate every bundle. It is NOT a
+sandbox: the executor stays the final safety authority at run time.
 
 The allowed AST node types, operators, built-ins and limits come from
 ``config/robot_api.yaml`` so the executor can enforce the very same specification.
@@ -14,7 +14,7 @@ import builtins
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional
 
-from limo_llm.function_parser import build_call_graph, find_cycle
+from limo_policy.call_graph import build_call_graph, find_cycle
 
 _CONSTANT_TYPES = (str, int, float, bool, type(None))
 _LIST_RETURNING_APIS = ('get_search_locations', 'get_known_objects', 'get_visible_obj_names')

@@ -1,5 +1,6 @@
 # Search location poses for the Webots world (webots_ros2_limo/worlds/limo_world.wbt).
 #
+# Owner: limo_executor (maintains AND installs this file; limo_policy does not install it).
 # Consumer: limo_executor (goto_loc resolves a location name to this pose).
 # limo_llm never reads this file: the LLM only sees the names in search_locations_sim.yaml.
 # The names here must match search_locations_sim.yaml exactly.

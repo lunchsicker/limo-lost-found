@@ -12,8 +12,6 @@ from typing import Dict, List, Optional, Tuple
 
 import yaml
 
-PACKAGE_NAME = 'limo_llm'
-
 
 class SpecError(ValueError):
     """A specification file is missing or malformed."""
@@ -27,35 +25,6 @@ def _load_yaml(path):
     if not isinstance(data, dict):
         raise SpecError(f'spec file is not a mapping: {path}')
     return data
-
-
-def _source_root():
-    """Directory of the limo_llm package source tree (…/limo_llm)."""
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-def _share_dir():
-    try:
-        from ament_index_python.packages import get_package_share_directory
-        return get_package_share_directory(PACKAGE_NAME)
-    except Exception:  # not installed / no ament (plain pytest from source)
-        return None
-
-
-def default_common_config_dir():
-    """Repository-level shared config (installed to share/limo_llm/config/common)."""
-    share = _share_dir()
-    if share and os.path.isdir(os.path.join(share, 'config', 'common')):
-        return os.path.join(share, 'config', 'common')
-    return os.path.join(os.path.dirname(_source_root()), 'config')
-
-
-def default_package_dir(subdir):
-    """Package-owned resource directory: 'prompts' or 'config'."""
-    share = _share_dir()
-    if share and os.path.isdir(os.path.join(share, subdir)):
-        return os.path.join(share, subdir)
-    return os.path.join(_source_root(), subdir)
 
 
 # --------------------------------------------------------------------------- Robot API

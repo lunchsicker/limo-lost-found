@@ -17,13 +17,11 @@ limo_llm/
 │   ├── lmp.py                 # CaP LMP 포트 (exec 제거)
 │   ├── lmp_fgen.py            # CaP LMPFGen 포트: 계층적 함수 생성
 │   ├── function_parser.py     # CaP FunctionParser + 호출 그래프 / 순환 탐지
-│   ├── policy_validator.py    # 문법 서브셋 정적 검증
 │   ├── prompt_builder.py      # 프롬프트 조립 (robot_api.yaml → API 헤더)
 │   ├── policy_generator.py    # setup_LMP 역할, generate(command)
-│   ├── policy_bundle.py       # PolicyBundle / GenerationResult
 │   ├── llm_client.py          # OpenAI Chat / Mock
-│   ├── specs.py               # 공통 YAML 로더
-│   └── mock/                  # 테스트 전용: 참조 인터프리터, MockRobot, mock executor 노드
+│   ├── resources.py           # limo_llm prompts/config 경로
+│   └── mock/                  # 테스트 전용: MockRobot, mock executor 노드
 ├── prompts/  policy_ui.txt · fgen.txt · system.txt
 ├── config/   llm_params.yaml · mock_scenario.yaml · mock_llm_responses.yaml
 ├── launch/llm.launch.py
@@ -39,7 +37,11 @@ colcon build --packages-select limo_llm
 source install/setup.bash
 ```
 
-빌드하면 레포 루트 `config/*.yaml`이 `share/limo_llm/config/common/`에 설치됩니다.
+공통 명세 로더·검증기·인터프리터·`PolicyBundle`은 [`../limo_policy`](../limo_policy)에 있습니다(ROS 의존 없음). 레포 루트 `config/`의 공통 명세는 `limo_policy`가 `share/limo_policy/config/`에 설치하며, `LIMO_CONFIG_DIR` 환경변수로 다른 디렉터리를 지정할 수 있습니다.
+
+```bash
+colcon build --packages-up-to limo_llm      # limo_policy가 함께 빌드됨
+```
 
 ## LLM 설정
 

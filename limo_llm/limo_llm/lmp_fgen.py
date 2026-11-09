@@ -18,8 +18,9 @@ Changes (documented in docs/limo_llm_design.md):
 import ast
 from typing import Dict, Iterable, List, Optional
 
-from limo_llm.function_parser import call_arity, called_names, parse_called_functions
+from limo_llm.function_parser import call_arity, parse_called_functions
 from limo_llm.llm_client import clean_completion
+from limo_policy.call_graph import called_names
 
 
 class FGenError(Exception):

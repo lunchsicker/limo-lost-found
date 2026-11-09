@@ -1,8 +1,7 @@
-"""FunctionParser (original CaP logic) and call-graph helpers."""
+"""FunctionParser (original CaP logic). Call-graph tests: limo_policy/test/test_call_graph.py."""
 
-from limo_llm.function_parser import (build_call_graph, call_arity, find_cycle,
-                                      find_undefined_functions, parse_called_functions,
-                                      topological_order)
+from limo_llm.function_parser import (call_arity, find_undefined_functions,
+                                      parse_called_functions)
 
 
 def test_parser_prefers_assignment_signature_like_original():
@@ -30,24 +29,6 @@ def test_undefined_functions_exclude_known_and_local_defs():
     undefined = find_undefined_functions(code, {'goto_loc'})
     assert set(undefined) == {'other_fn'}
     assert undefined['other_fn'] == 'z = other_fn(2)'
-
-
-def test_call_graph_cycle_and_order():
-    helpers = {
-        'a': 'def a(x):\n  return b(x)\n',
-        'b': 'def b(x):\n  return c(x)\n',
-        'c': 'def c(x):\n  return goto_loc(x)\n',
-    }
-    graph = build_call_graph(helpers)
-    assert graph == {'a': {'b'}, 'b': {'c'}, 'c': set()}
-    assert find_cycle(graph) is None
-    assert topological_order(graph) == ['c', 'b', 'a']
-
-
-def test_cycles_detected():
-    assert find_cycle({'a': {'a'}}) == ['a', 'a']
-    cyc = find_cycle({'a': {'b'}, 'b': {'a'}})
-    assert cyc[0] == cyc[-1] and set(cyc) == {'a', 'b'}
 
 
 def test_call_arity():

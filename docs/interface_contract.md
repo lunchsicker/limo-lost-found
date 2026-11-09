@@ -6,9 +6,23 @@
   - `config/robot_api.yaml` — Robot API 시그니처 + 정책 문법(허용 AST 노드, 연산자, 빌트인, 실행 한도)
   - `config/object_classes.yaml` — 한국어 별칭 → 표준 이름 → 탐지기 클래스 후보
   - `config/search_locations_sim.yaml` — 탐색 위치 **이름만** (좌표 없음)
+  - `config/search_poses_sim.yaml` — 탐색 위치 좌표. **소유·설치: `limo_executor` 담당자** (LLM은 읽지 않음)
 
-`limo_llm`은 이 파일들을 빌드 시 `share/limo_llm/config/common/`으로 설치해 사용한다.
-다른 패키지는 같은 파일을 읽어야 하며 사본을 만들지 않는다. 이 파일들을 `limo_interfaces`로 옮길지는 합의 사항이다(§7).
+파일별 소유자는 [`config/README.md`](../config/README.md)에 정리되어 있다.
+
+**설치와 탐색**
+- 공통 명세 3종(`robot_api.yaml`, `object_classes.yaml`, `search_locations_*.yaml`)은 `limo_policy`가 `share/limo_policy/config/`에 설치한다. 원본은 레포 루트 `config/`에 그대로 둔다.
+- `search_poses_*.yaml`은 `limo_executor`가 관리하고 설치한다.
+- `limo_interfaces`는 msg/srv/action 정의만 담당하며 설정 파일을 설치하지 않는다.
+- 경로 탐색은 `limo_policy.paths.default_config_dir()`이 한다. 순서는 ① 명시적 경로 ② 환경변수 `LIMO_CONFIG_DIR` ③ 설치된 `share/limo_policy/config` ④ `AMENT_PREFIX_PATH`의 같은 경로 ⑤ 레포 `config/`. 노드의 파일 경로 파라미터는 항상 이 탐색보다 우선한다.
+- 다른 패키지는 같은 파일을 읽어야 하며 사본을 만들지 않는다.
+
+**공용 구현 (`limo_policy`, ROS 런타임 의존 없음)**
+- `limo_policy.specs`: 위 YAML 로더(`RobotApiSpec`, `ObjectCatalog`, `SearchEnvironment`)
+- `limo_policy.validator.PolicyValidator`: §6 문법 검증 (limo_llm 생성 시 + executor 재검증 시 같은 코드)
+- `limo_policy.interpreter.PolicyInterpreter`: exec 없는 참조 인터프리터
+- `limo_policy.errors`: §5 결과 코드에 대응하는 실행 예외
+- `limo_policy.bundle.PolicyBundle`: §2 번들
 
 ---
 
@@ -21,7 +35,8 @@ user_command(String) ──► limo_llm ──PolicyBundle──► limo_executo
 
 - `limo_llm`은 생성된 코드를 **절대 실행하지 않는다** (`exec`/`eval` 미사용).
 - `limo_executor`는 번들을 받으면 **반드시 다시 검증**하고, `exec` 없이 문법 서브셋만 해석하는 인터프리터로 실행한다.
-  - 참고 구현: `limo_llm/limo_llm/mock/policy_interpreter.py`. 테스트용이며 보안 경계로서 검토되지 않았다.
+  - 재검증: `limo_policy.validator.PolicyValidator.check_bundle()` (limo_llm이 생성 때 쓰는 것과 같은 구현).
+  - 실행: `limo_policy.interpreter.PolicyInterpreter`를 그대로 써도 된다. 단, 보안 경계로서 검토되지 않았으므로 시간 한도·취소·인자 검사는 executor가 책임진다.
 - AST 정적 검증만으로 안전하다고 가정하지 않는다. 실행 시에도 다음을 강제해야 한다.
   - 인자 값 검사(등록된 위치·물체인지)
   - 스텝·반복·호출 깊이·시간 한도
@@ -29,7 +44,7 @@ user_command(String) ──► limo_llm ──PolicyBundle──► limo_executo
 
 ## 2. PolicyBundle (limo_llm → limo_executor)
 
-`limo_llm/limo_llm/policy_bundle.py`
+`limo_policy/limo_policy/bundle.py` (`PolicyBundle`, `HelperFunction`)
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
@@ -180,7 +195,17 @@ string[] warnings
 | `TIMEOUT` | 전체 실행 시간 초과 |
 | `CANCELED` | 사용자 취소 |
 
-`limo_llm` 생성 단계의 오류 코드(`GenerationResult.error_code`): `LLM_ERROR`, `VALIDATION_ERROR`, `FGEN_ERROR`, `INVALID_REQUEST`.
+정상적인 미발견은 예외가 아니다. `is_obj_visible()`·`search_here()`는 관찰을 마친 뒤 False를 반환한다. 미발견과 구분해야 하는 실패는 `limo_policy.errors`의 예외로 알린다(예외의 `code` = 위 결과 코드).
+
+| 예외 | `code` | 언제 |
+|---|---|---|
+| `DetectionError` | `DETECTION_ERROR` | 카메라·탐지 모델 오류 |
+| `UnsupportedObjectError` | `UNSUPPORTED_OBJECT` | 탐지기가 지원하지 않는 물체 |
+| `UnknownLocationError` | `UNKNOWN_LOCATION` | 등록되지 않은 위치 이름 |
+| `PolicyCanceled` | `CANCELED` | 취소 요청 |
+| `PolicyRuntimeError` | `RUNTIME_ERROR` / `LIMIT_EXCEEDED` / `VALIDATION_ERROR` | 그 밖의 실행 실패 (기반 클래스) |
+
+`limo_llm` 생성 단계의 오류 코드(`GenerationResult.error_code`, limo_llm 내부 타입): `LLM_ERROR`, `VALIDATION_ERROR`, `FGEN_ERROR`, `INVALID_REQUEST`.
 
 ## 6. 정책 문법 (grammar 0.1.0) — 프롬프트·limo_llm 검증기·executor 인터프리터 공통
 
@@ -202,14 +227,14 @@ string[] warnings
 
 **`limo_interfaces` 담당자**
 1. `ExecutePolicy.action`과 `GeneratePolicy.srv` 추가 여부와 필드(§3)
-2. 공통 명세(`config/*.yaml`)를 `limo_interfaces/share`로 옮길지, 레포 루트 `config/`에 둘지
+2. `limo_interfaces`는 msg/srv/action 정의만 담당한다. 설정 파일 설치와 `limo_policy` 의존은 필요 없다
 3. 버전 정책: `api_version`·`grammar_version`이 다르면 실행 거부
 
 **`limo_executor` 담당자**
 1. §4 API 의미, §5 결과 코드, §6 문법·한도 수용
-2. 위치 이름 ↔ 좌표 매핑 소유. Webots용 좌표는 `config/search_poses_sim.yaml`에 있으며, 6곳 모두 Nav2 주행 검증을 마쳤다(2026-11-08, 오차 0.05–0.09 m). 각 지점에서 카메라에 무엇이 보이는지는 미검증. 실물 LIMO 지도용 좌표는 별도로 만들어야 한다
+2. 위치 이름 ↔ 좌표 매핑 소유. **`config/search_poses_*.yaml`의 관리와 설치는 executor 담당**(예: executor `setup.py`가 `../config/search_poses_*.yaml`을 설치). Webots용 좌표는 `config/search_poses_sim.yaml`에 있으며, 6곳 모두 Nav2 주행 검증을 마쳤다(2026-11-08, 오차 0.05–0.09 m). 각 지점에서 카메라에 무엇이 보이는지는 미검증. 실물 LIMO 지도용 좌표는 별도로 만들어야 한다
 3. `search_here` 구현 방식(Nav2 Spin)과 파라미터(§4.2)
-4. 인터프리터 구현(참고 구현 사용 여부)과 취소·타임아웃 처리
+4. `<depend>limo_policy</depend>` 추가. 재검증은 `PolicyValidator`, 실행은 `PolicyInterpreter` 사용 여부 결정. Robot API 구현은 `limo_policy.errors`의 예외를 던질 것. 취소·타임아웃 처리
 5. LED 미구현 시 `led_on()`이 False를 반환할 것
 
 **`limo_perception` 담당자** (§8)

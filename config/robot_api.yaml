@@ -5,9 +5,10 @@
 #   * limo_executor - must expose exactly these functions to the policy interpreter and
 #                     enforce the same grammar at run time (final safety authority)
 #
-# Status: DRAFT, owned jointly by limo_llm / limo_executor / limo_interfaces.
-# Location: repository-level config/ until the team decides whether it moves to
-# limo_interfaces (see docs/interface_contract.md). Do not fork copies of this file.
+# Status: DRAFT, owned jointly by limo_llm / limo_executor (see config/README.md).
+# Location: this repository-level config/ is the original; limo_policy installs it to
+# share/limo_policy/config and loads/enforces it (limo_policy.specs / validator /
+# interpreter). Do not fork copies of this file.
 
 api_version: '0.1.0'
 grammar_version: '0.1.0'

@@ -13,23 +13,11 @@ scenario explicitly enables the *mock* LED, and the result always reports
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
-from limo_llm.mock.policy_interpreter import (PolicyCanceled, PolicyInterpreter,
-                                              PolicyRuntimeError)
-from limo_llm.policy_validator import PolicyValidator
+from limo_policy.errors import (DetectionError, PolicyCanceled, PolicyRuntimeError,
+                                UnknownLocationError, UnsupportedObjectError)
+from limo_policy.interpreter import PolicyInterpreter
+from limo_policy.validator import PolicyValidator
 import yaml
-
-
-class PerceptionError(PolicyRuntimeError):
-    """Camera / detector failure (distinct from 'not detected')."""
-
-    def __init__(self, message):
-        super().__init__('DETECTION_ERROR', message)
-
-
-class UnsupportedObjectError(PolicyRuntimeError):
-
-    def __init__(self, obj_name):
-        super().__init__('UNSUPPORTED_OBJECT', f'detector does not support {obj_name!r}')
 
 
 @dataclass
@@ -95,7 +83,7 @@ class MockRobot:
         if obj_name not in self.s.known_objects or obj_name in self.s.undetectable:
             raise UnsupportedObjectError(obj_name)
         if self.s.camera_error_at == (self.location, self.view):
-            raise PerceptionError(f'camera error at {self.location} view {self.view}')
+            raise DetectionError(f'camera error at {self.location} view {self.view}')
         self.calls.append(('detect', obj_name, self.location, self.view))
         return self.s.placements.get(obj_name) == (self.location, self.view)
 
@@ -118,7 +106,7 @@ class MockRobot:
     def get_visible_obj_names(self):
         self._api('get_visible_obj_names')
         if self.s.camera_error_at == (self.location, self.view):
-            raise PerceptionError(f'camera error at {self.location} view {self.view}')
+            raise DetectionError(f'camera error at {self.location} view {self.view}')
         return [o for o, p in self.s.placements.items()
                 if p == (self.location, self.view) and o in self.s.known_objects]
 
@@ -129,7 +117,7 @@ class MockRobot:
     def goto_loc(self, loc_name):
         self._api('goto_loc', loc_name)
         if loc_name not in self.s.locations:
-            raise PolicyRuntimeError('UNKNOWN_LOCATION', f'{loc_name!r} is not registered')
+            raise UnknownLocationError(loc_name)
         if loc_name in self.s.unreachable:
             self.failed.append(loc_name)
             return False

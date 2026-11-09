@@ -14,9 +14,10 @@ import json
 import threading
 
 from limo_llm.mock.mock_robot import MockRobot, MockScenario, run_bundle
-from limo_llm.policy_bundle import PolicyBundle
 from limo_llm.policy_generator import default_paths
-from limo_llm.specs import default_package_dir, ObjectCatalog, RobotApiSpec, SearchEnvironment
+from limo_llm.resources import default_package_dir
+from limo_policy.bundle import PolicyBundle
+from limo_policy.specs import ObjectCatalog, RobotApiSpec, SearchEnvironment
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -35,9 +36,11 @@ class MockExecutorNode(Node):
         self.declare_parameter('bundle_topic', '/limo_llm/policy_bundle')
         self.declare_parameter('cancel_topic', '/limo_llm/cancel')
         g = self.get_parameter
-        self.spec = RobotApiSpec.load(g('robot_api_file').value)
-        self.catalog = ObjectCatalog.load(g('object_classes_file').value)
-        self.env = SearchEnvironment.load(g('search_locations_file').value)
+        self.spec = RobotApiSpec.load(g('robot_api_file').value or d['robot_api_file'])
+        self.catalog = ObjectCatalog.load(g('object_classes_file').value
+                                          or d['object_classes_file'])
+        self.env = SearchEnvironment.load(g('search_locations_file').value
+                                          or d['search_locations_file'])
         self.scenario_file = g('scenario_file').value
         MockScenario.from_yaml(self.scenario_file)   # fail early on a bad file
         self.pub_result = self.create_publisher(String, '~/result', 10)

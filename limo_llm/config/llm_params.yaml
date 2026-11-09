@@ -1,6 +1,6 @@
 # Parameters for the limo_llm node. Paths left empty here use the installed defaults:
-#   robot_api_file / object_classes_file / search_locations_file -> share/limo_llm/config/common
-#   (copied from the repository-level config/ directory at build time)
+#   robot_api_file / object_classes_file / search_locations_file -> limo_policy.paths
+#   ($LIMO_CONFIG_DIR, else share/limo_policy/config, else the repository config/)
 #   prompts_dir -> share/limo_llm/prompts
 limo_llm:
   ros__parameters:

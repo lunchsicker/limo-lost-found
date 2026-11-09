@@ -10,7 +10,7 @@ LLM maps Korean words to object names (needs provider:=openai, not run here).
 import json
 
 from conftest import FGEN_RESPONSES, hierarchical_policy, INLINE_POLICY
-from limo_llm.policy_bundle import PolicyBundle
+from limo_policy.bundle import PolicyBundle
 import pytest
 
 CASES = [

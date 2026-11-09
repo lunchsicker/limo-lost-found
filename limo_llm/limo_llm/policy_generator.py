@@ -7,17 +7,42 @@ No ROS dependency; the ROS node is a thin wrapper around this class.
 
 import ast
 import copy
+from dataclasses import asdict, dataclass
+import json
 import os
+from typing import Optional
 import uuid
 
-from limo_llm.function_parser import build_call_graph, called_names, topological_order
 from limo_llm.llm_client import LLMError
 from limo_llm.lmp import LMP
 from limo_llm.lmp_fgen import FGenError, LMPFGen
-from limo_llm.policy_bundle import GenerationResult, HelperFunction, PolicyBundle
-from limo_llm.policy_validator import PolicyValidationError, PolicyValidator
 from limo_llm.prompt_builder import PromptBuilder
-from limo_llm.specs import ObjectCatalog, RobotApiSpec, SearchEnvironment
+from limo_llm.resources import default_package_dir
+from limo_policy.bundle import HelperFunction, PolicyBundle
+from limo_policy.call_graph import build_call_graph, called_names, topological_order
+from limo_policy.paths import default_config_dir
+from limo_policy.specs import ObjectCatalog, RobotApiSpec, SearchEnvironment
+from limo_policy.validator import PolicyValidationError, PolicyValidator
+
+
+@dataclass
+class GenerationResult:
+    """Outcome of one generate() call (limo_llm only; not part of the executor contract)."""
+
+    success: bool
+    bundle: Optional[PolicyBundle] = None
+    error_code: str = ''        # LLM_ERROR | VALIDATION_ERROR | FGEN_ERROR | INVALID_REQUEST
+    error_message: str = ''
+    raw_completion: str = ''    # last policy completion, for debugging rejected code
+
+    def to_dict(self):
+        d = asdict(self)
+        d['bundle'] = self.bundle.to_dict() if self.bundle else None
+        return d
+
+    def to_json(self, indent=None):
+        return json.dumps(self.to_dict(), ensure_ascii=False, indent=indent)
+
 
 # Same values as cfg_tabletop in the original notebook, except the extra stop token for
 # the `locations = [` context line and the limits.
@@ -193,10 +218,14 @@ class PolicyGenerator:
         return out
 
 
-def default_paths():
-    """Return the default spec/prompt paths (installed share dir, else source tree)."""
-    from limo_llm.specs import default_common_config_dir, default_package_dir
-    common = default_common_config_dir()
+def default_paths(config_dir=None):
+    """
+    Return the default spec/prompt paths.
+
+    Shared specs come from ``limo_policy.paths.default_config_dir`` (explicit dir, then
+    $LIMO_CONFIG_DIR, then the installed limo_policy share, then the repository config/).
+    """
+    common = default_config_dir(config_dir)
     return {
         'robot_api_file': os.path.join(common, 'robot_api.yaml'),
         'object_classes_file': os.path.join(common, 'object_classes.yaml'),
