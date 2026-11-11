@@ -1,19 +1,4 @@
-"""
-Function-generating LMP (hierarchical code generation), port of ``LMPFGen``.
-
-Original behaviour kept (Interactive_Demo.ipynb):
-  * the query is ``# define function: <f_sig>.`` appended to the fgen few-shot prompt
-  * every called-but-undefined function in the generated code is created from its call
-    signature, and the body of each new function is searched again (recursion)
-
-Changes (documented in docs/limo_llm_design.md):
-  * generated functions are NOT executed: their source is collected for the PolicyBundle
-  * ``var_exists`` (eval) -> name-set membership
-  * duplicate generation prevention, recursion (cycle) detection, depth / count limits
-  * name collisions with robot API / built-ins rejected
-  * each function must be a single ``def`` in the shared policy grammar
-  * the retired ``code-davinci-edit-001`` ``fix_bugs`` pass is not ported
-"""
+"""Function-generating LMP."""
 
 import ast
 from typing import Dict, Iterable, List, Optional
@@ -24,7 +9,6 @@ from limo_policy.call_graph import called_names
 
 
 class FGenError(Exception):
-    """Hierarchical generation failed (code is a short machine-readable reason)."""
 
     def __init__(self, code, message):
         self.code = code
@@ -32,11 +16,6 @@ class FGenError(Exception):
 
 
 def extract_function(src, f_name):
-    """
-    Return the source of the module-level ``def f_name`` in ``src``.
-
-    Returns ``(source, dropped)`` where ``dropped`` counts other top-level statements.
-    """
     try:
         tree = ast.parse(src)
     except SyntaxError as e:
@@ -89,11 +68,6 @@ class LMPFGen:
 
     def create_new_fs_from_code(self, code_str, other_names: Iterable[str] = (),
                                 _depth=0, _stack=(), _new_fs: Optional[Dict] = None):
-        """
-        Create every undefined function called in ``code_str``, recursively.
-
-        Returns ``{name: source}`` in dependency order (callees before callers).
-        """
         new_fs = {} if _new_fs is None else _new_fs
         try:
             tree = ast.parse(code_str)
@@ -127,8 +101,7 @@ class LMPFGen:
                 raise FGenError('RECURSION', f'{f_name} calls itself')
             self.signatures[f_name] = f_sig
 
-            # Recursively define child functions used in the new function. (The original
-            # re-parsed the unparsed body; parsing the whole def finds the same calls.)
+            # Recursively define child functions used in the new function.
             self.create_new_fs_from_code(f_src, other_names, _depth + 1,
                                          _stack + (f_name,), new_fs)
             new_fs[f_name] = f_src

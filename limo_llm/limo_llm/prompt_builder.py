@@ -1,18 +1,4 @@
-"""
-Builds the Code as Policies prompts from templates + shared specs (no ROS dependency).
-
-Prompt layout (same order as the original ``LMP.build_prompt``)::
-
-    <API header: import lines + signatures + objects + rules>   <- {api_header}
-    <few-shot examples: context lines, "# command.", policy code>
-    <context: locations = [...] / objects = [...]>              <- runtime environment
-    # <user command>.                                           <- query
-
-The original prompts only had the import lines. The signature/return-value comments and
-the rule comments are additions required for this project (docs/limo_llm_design.md).
-Object names are the detector's COCO class names; the LLM maps the user's words to them
-(no alias table).
-"""
+"""Builds the Code as Policies prompts from templates + shared specs (no ROS dependency)."""
 
 import os
 
@@ -60,12 +46,13 @@ class PromptBuilder:
             '# Rules:',
             '#   Use only location names from `locations` and object names from `objects`.',
             "#   Names in `objects` are detector class names: map the user's (Korean) words",
-            '#   to one of them. Never write any other object name.',
+            '#   to one of them. Use the name only, without colour or size words.',
             '#   Never invent locations or coordinates. The user usually does not know where',
             '#   the object is: search the registered locations with get_search_locations().',
             '#   Only look for an object after goto_loc() returned True. Check the current',
             '#   view with is_obj_visible() first, then search_here(). Stop once it is found.',
-            '#   If the object is not in `objects`, say() that you cannot search for it.',
+            '#   If the object is not in `objects`, still search for it using its English',
+            '#   class name (lowercase), and say() that it may not be recognized.',
             '#   Allowed syntax: assignment, calls, if/elif/else, for over a list, break,',
             '#   top-level def with return, and/or/not, comparisons, + , list/tuple literals,',
             '#   f-strings. Not allowed: import, attribute access (a.b), while, lambda,',
@@ -78,7 +65,6 @@ class PromptBuilder:
                          + self.rule_lines())
 
     def context(self):
-        """Runtime environment as Python lines (CaP: ``objects = [...]``)."""
         return f'locations = {self.env.locations!r}\nobjects = {self.objects!r}'
 
     # ------------------------------------------------------------------ prompts

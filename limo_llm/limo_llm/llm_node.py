@@ -1,20 +1,5 @@
 #!/usr/bin/env python3
-"""
-ROS 2 node: Korean command -> Code as Policies PolicyBundle -> executor.
-
-Subscriptions
-  user_command              std_msgs/String  natural-language command (Korean)
-Publications
-  ready_for_input           std_msgs/Bool    latched; True when a command is accepted
-  ~/policy_bundle           std_msgs/String  GenerationResult JSON   (DEBUG ONLY)
-  ~/generated_code          std_msgs/String  readable full policy source
-  ~/cancel                  std_msgs/String  cancel request for the debug mock executor
-Output modes (parameter ``output_mode``)
-  debug_topic  publish the bundle on ~/policy_bundle for the mock executor (development)
-  action       send it to limo_executor via the ExecutePolicy action (final interface;
-               requires limo_interfaces/action/ExecutePolicy, not defined yet)
-  none         generate and publish code only
-"""
+"""Korean command -> Code as Policies PolicyBundle -> executor."""
 
 import threading
 
@@ -169,12 +154,6 @@ class LlmNode(Node):
 
 
 class ExecutePolicyClient:
-    """
-    Action client for the proposed ``limo_interfaces/action/ExecutePolicy``.
-
-    UNTESTED: the action is not defined in limo_interfaces yet. Field names follow
-    docs/interface_contract.md and must be updated once the interface is agreed.
-    """
 
     def __init__(self, node, action_name):
         self.node = node
@@ -186,7 +165,7 @@ class ExecutePolicyClient:
             self._client = None
             node.get_logger().error(
                 'output_mode=action but limo_interfaces/action/ExecutePolicy does not exist '
-                '(see docs/interface_contract.md). Policies will NOT be sent to the robot.')
+                'Policies will NOT be sent to the robot.')
             return
         self._type = ExecutePolicy
         self._client = ActionClient(node, ExecutePolicy, action_name)

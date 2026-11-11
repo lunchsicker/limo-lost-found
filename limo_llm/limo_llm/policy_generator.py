@@ -1,9 +1,4 @@
-"""
-PolicyGenerator: wires the LMPs together (role of ``setup_LMP`` in the original).
-
-``generate(command)`` -> :class:`GenerationResult` with a validated :class:`PolicyBundle`.
-No ROS dependency; the ROS node is a thin wrapper around this class.
-"""
+"""PolicyGenerator: wires the LMPs together."""
 
 import ast
 import copy
@@ -27,8 +22,6 @@ from limo_policy.validator import PolicyValidationError, PolicyValidator
 
 @dataclass
 class GenerationResult:
-    """Outcome of one generate() call (limo_llm only; not part of the executor contract)."""
-
     success: bool
     bundle: Optional[PolicyBundle] = None
     error_code: str = ''        # LLM_ERROR | VALIDATION_ERROR | FGEN_ERROR | INVALID_REQUEST
@@ -44,9 +37,7 @@ class GenerationResult:
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=indent)
 
 
-# Searchable objects for the demo. The names are the detector's COCO class names, so no
-# word -> class table is needed: the LLM maps the user's Korean words to one of these, and
-# the validator rejects any other object name. Overridden by the ROS parameter `objects`.
+# Searchable objects for the demo.
 DEFAULT_OBJECTS = ('handbag', 'umbrella', 'cup', 'cell phone', 'book')
 
 
@@ -58,8 +49,6 @@ def check_objects(objects):
     return names
 
 
-# Same values as cfg_tabletop in the original notebook, except the extra stop token for
-# the `locations = [` context line and the limits.
 DEFAULT_CFG = {
     'policy': {
         'max_tokens': 512,
@@ -95,12 +84,6 @@ def merge_cfg(base, override):
 
 
 def split_inline_defs(code):
-    """
-    Move module-level ``def`` statements out of the policy code.
-
-    Returns ``(policy_code_without_defs, {name: source})``. Module-level defs have no side
-    effects, so running them before the policy (as helpers) keeps the semantics.
-    """
     tree = ast.parse(code)
     lines = code.splitlines()
     defs, drop = {}, set()
@@ -168,8 +151,6 @@ class PolicyGenerator:
                 last_code, last_msg = 'FGEN_ERROR', str(e)
             raw = getattr(self.lmp_policy, 'last_completion', raw)
             self._log(f'attempt {attempt} rejected: {last_msg}')
-            # Retry feedback (not in the original CaP): with temperature 0 the same prompt
-            # would give the same code, so the rejection reason is added as a comment.
             extra = ('# (previous code for this command was rejected: '
                      + last_msg.replace('\n', ' ')[:300]
                      + '. Follow the rules and the examples.)')
@@ -206,7 +187,9 @@ class PolicyGenerator:
             helpers=helpers, target_objects=targets,
             api_version=self.spec.api_version, grammar_version=self.spec.grammar_version,
             provider=getattr(self.llm, 'provider', ''), model=getattr(self.llm, 'model', ''),
-            warnings=list(self.lmp_fgen.warnings))
+            warnings=list(self.lmp_fgen.warnings) + [
+                f'{t!r} is not in objects: searched anyway, the detector may not '
+                'recognise it' for t in self.validator.unlisted_objects(targets)])
         return bundle
 
     @staticmethod
@@ -222,12 +205,6 @@ class PolicyGenerator:
 
 
 def default_paths(config_dir=None):
-    """
-    Return the default spec/prompt paths.
-
-    Shared specs come from ``limo_policy.paths.default_config_dir`` (explicit dir, then
-    $LIMO_CONFIG_DIR, then the installed limo_policy share, then the repository config/).
-    """
     common = default_config_dir(config_dir)
     return {
         'robot_api_file': os.path.join(common, 'robot_api.yaml'),

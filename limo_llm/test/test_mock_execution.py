@@ -93,7 +93,17 @@ def test_all_locations_unreachable(bundle, spec):
     assert not any(c[0] in ('is_obj_visible', 'search_here') for c in res.calls)
 
 
+def test_unlisted_object_is_searched_and_not_found(make_generator, spec):
+    gen, _ = make_generator([('지갑', hierarchical_policy('wallet', '지갑'))]
+                            + FGEN_RESPONSES)
+    r = gen.generate('지갑 찾아줘.')
+    res, _ = run(r.bundle, spec, unreachable={'armchair'})
+    assert res.outcome == 'NOT_FOUND'
+    assert res.visited_locations == [loc for loc in LOCS if loc != 'armchair']
+
+
 def test_unsupported_target_is_an_error_not_not_found(bundle, spec):
+    # a LISTED object whose detector class is missing (configuration error)
     res, _ = run(bundle, spec, undetectable={'umbrella'})
     assert res.outcome == 'UNSUPPORTED_OBJECT'
 

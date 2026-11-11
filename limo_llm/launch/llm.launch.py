@@ -1,13 +1,3 @@
-"""
-Launch the limo_llm policy generator (optionally with the DEBUG mock executor).
-
-Usage:
-  # offline, no API key, no robot: mock LLM + mock executor
-  ros2 launch limo_llm llm.launch.py provider:=mock mock_executor:=true
-  # real LLM, policies only published for inspection / mock executor
-  ros2 launch limo_llm llm.launch.py provider:=openai mock_executor:=true
-"""
-
 import os
 
 from ament_index_python.packages import get_package_share_directory

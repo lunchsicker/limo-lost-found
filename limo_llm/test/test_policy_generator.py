@@ -38,29 +38,34 @@ def test_korean_commands_for_five_objects(make_generator, command, obj, ko):
 
 
 def test_objects_parameter(make_generator):
-    gen, _ = make_generator([('찾아', "x = search_here('backpack')\n")])
+    gen, _ = make_generator([])
     assert gen.objects == ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
-    r = gen.generate('백팩 찾아줘.')    # 'backpack' is a COCO class but not in `objects`
-    assert not r.success and 'UNKNOWN_OBJECT' in r.error_message
     with pytest.raises(ValueError):
         gen.__class__(gen.spec, ['cup', 'cup'], gen.env, PATHS['prompts_dir'], None)
     with pytest.raises(ValueError):
         gen.__class__(gen.spec, [], gen.env, PATHS['prompts_dir'], None)
 
 
-def test_unsupported_object_is_refused_by_policy(make_generator):
-    refusal = "say('죄송해요. 지갑은 아직 찾을 수 있는 물체가 아니에요.')\n"
-    gen, llm = make_generator([('지갑', refusal)])
+def test_unlisted_object_is_searched_with_a_warning(make_generator):
+    gen, _ = make_generator([('지갑', hierarchical_policy('wallet', '지갑'))]
+                            + FGEN_RESPONSES)
     r = gen.generate('지갑 찾아줘.')
-    assert r.success
-    assert r.bundle.target_objects == [] and r.bundle.helpers == []
+    assert r.success, r.error_message
+    assert r.bundle.target_objects == ['wallet']
+    assert any("'wallet' is not in objects" in w for w in r.bundle.warnings)
 
 
-def test_unsupported_object_literal_is_rejected(make_generator):
-    gen, llm = make_generator([('지갑', "found = search_here('wallet')\n")])
-    r = gen.generate('지갑 찾아줘.')
+def test_listed_object_has_no_unlisted_warning(make_generator):
+    gen, _ = make_generator([('우산', hierarchical_policy('umbrella', '우산'))]
+                            + FGEN_RESPONSES)
+    assert not any('not in objects' in w for w in gen.generate('우산 찾아줘.').bundle.warnings)
+
+
+def test_partial_object_name_is_rejected(make_generator):
+    gen, llm = make_generator([('핸드폰', "found = search_here('phone')\n")])
+    r = gen.generate('핸드폰 찾아줘.')
     assert not r.success and r.error_code == 'VALIDATION_ERROR'
-    assert 'UNKNOWN_OBJECT' in r.error_message
+    assert 'UNKNOWN_OBJECT' in r.error_message and "'cell phone'" in r.error_message
     assert len(llm.calls) == 2    # rejected, regenerated once with feedback, rejected again
     assert 'previous code for this command was rejected' in llm.calls[1]['prompt']
 

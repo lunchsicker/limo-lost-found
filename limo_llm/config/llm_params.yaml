@@ -7,7 +7,7 @@
 limo_llm:
   ros__parameters:
     # Searchable objects = detector (COCO) class names. The LLM maps the user's words to
-    # these; any other object name is rejected by the validator.
+    # these. Other objects are still searched and reported as not found if never seen.
     objects: [handbag, umbrella, cup, cell phone, book]
     provider: openai              # openai | mock
     model_name: gpt-4o-mini       # must support `stop` sequences (CaP stop tokens)

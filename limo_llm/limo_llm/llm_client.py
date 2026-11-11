@@ -1,12 +1,4 @@
-"""
-LLM providers for the LMPs (no ROS dependency).
-
-The original Code as Policies code called ``openai.Completion.create`` with the
-``code-davinci-002`` model, which has been retired. ``OpenAIChatClient`` sends the same
-prompt as a single user message to the Chat Completions API with a system message asking
-the model to continue the code, as turtlebot4_openai_tutorials does. ``MockLLMClient``
-returns scripted completions for tests and offline runs; it never invents code.
-"""
+"""LLM providers for the LMPs (no ROS dependency)."""
 
 import os
 import re
@@ -22,8 +14,8 @@ class LLMError(RuntimeError):
 _FENCE_RE = re.compile(r'^\s*```')
 
 
+# Return the last non-empty line of a prompt (the ``# <query>.`` line).
 def last_query_line(prompt):
-    """Return the last non-empty line of a prompt (the ``# <query>.`` line)."""
     for line in reversed(prompt.splitlines()):
         if line.strip():
             return line.strip()
@@ -31,12 +23,6 @@ def last_query_line(prompt):
 
 
 def clean_completion(text, stop: Optional[Sequence[str]] = None):
-    """
-    Strip markdown fences and cut at the first line starting with a stop token.
-
-    Chat models sometimes wrap code in ``` fences or ignore the stop parameter; the
-    original Completion API stopped generation at these tokens itself.
-    """
     lines = [ln for ln in (text or '').splitlines() if not _FENCE_RE.match(ln)]
     out = []
     for ln in lines:
@@ -73,12 +59,11 @@ class OpenAIChatClient(BaseLLMClient):
                            'parameter, or use provider:=mock')
         try:
             from openai import OpenAI
-        except ImportError as e:  # pragma: no cover - depends on the machine
+        except ImportError as e:
             raise LLMError('the "openai" Python package is not installed '
                            '(pip install openai)') from e
-        # The SDK retries rate-limit / connection errors itself (bounded), replacing the
-        # original infinite `while True: ... sleep(10)` loop.
-        self._client = OpenAI(api_key=api_key, timeout=timeout, max_retries=max_retries)
+        self._client = OpenAI(api_key=api_key, timeout=timeout, max_retries=max_retries,
+                              default_headers={'Accept-Encoding': 'gzip, deflate'})
         self._system_prompt = system_prompt
         self._token_param = token_param
 
@@ -102,14 +87,6 @@ class OpenAIChatClient(BaseLLMClient):
 
 
 class MockLLMClient(BaseLLMClient):
-    """
-    Scripted completions keyed by a substring of the query line.
-
-    ``responses`` is a list of ``(pattern, completion)``; the first pattern contained in
-    the last line of the prompt wins. ``fallback(prompt, query)`` may compute a response.
-    Every call is recorded in ``calls`` so tests can inspect the exact prompts.
-    """
-
     provider = 'mock'
 
     def __init__(self, responses: Optional[List[Tuple[str, str]]] = None,

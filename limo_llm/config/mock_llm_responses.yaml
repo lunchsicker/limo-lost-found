@@ -50,6 +50,14 @@ responses:
         say(f'{found_loc}에서 휴대폰을 찾았어요.')
       else:
         say('모든 탐색 위치를 확인했지만 휴대폰을 찾지 못했어요.')
+  - match: '지갑'
+    completion: |
+      say('지갑을 찾아볼게요.')
+      found_loc = find_obj_in_locs('wallet', get_search_locations())
+      if found_loc:
+        say(f'{found_loc}에서 지갑을 찾았어요.')
+      else:
+        say('모든 탐색 위치를 확인했지만 지갑을 찾지 못했어요.')
   - match: '책'
     completion: |
       say('책을 찾아볼게요.')

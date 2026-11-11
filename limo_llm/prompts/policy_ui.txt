@@ -1,11 +1,89 @@
 {api_header}
 
-locations = ['kitchen_table', 'sofa', 'desk', 'shoe_rack']
+locations = ['fridge', 'cardboard_boxes', 'armchair', 'sofa', 'cabinet', 'door']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
+# 스마트폰 찾아줘.
+say('스마트폰을 찾아볼게요.')
+found = False
+for location in get_search_locations():
+  if goto_loc(location):
+    if search_here('cell phone'):
+      report_found('cell phone', location)
+      found = True
+      break
+if not found:
+  say('스마트폰을 찾지 못했어요.')
+locations = ['fridge', 'cardboard_boxes', 'armchair', 'sofa', 'cabinet', 'door']
 objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 우산 찾아줘.
-target = 'umbrella'
-found = False
 say('우산을 찾아볼게요.')
+found = False
+for location in get_search_locations():
+  if goto_loc(location):
+    if search_here('umbrella'):
+      report_found('umbrella', location)
+      found = True
+      break
+if not found:
+  say('우산을 찾지 못했어요.')
+locations = ['fridge', 'cardboard_boxes', 'armchair', 'sofa', 'cabinet', 'door']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
+# 지금 앞에 컵 보여?
+if is_obj_visible('cup'):
+  say('네, 지금 앞에 컵이 보여요.')
+else:
+  say('아니요, 지금은 컵이 보이지 않아요.')
+locations = ['fridge', 'cardboard_boxes', 'armchair', 'sofa', 'cabinet', 'door']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
+# 소파 쪽에 가방 두고 온 것 같은데 찾아줘.
+target = 'handbag'
+found = False
+say('소파부터 가방을 찾아볼게요.')
+if goto_loc('sofa'):
+  if is_obj_visible(target):
+    report_found(target, 'sofa')
+    found = True
+  elif search_here(target):
+    report_found(target, 'sofa')
+    found = True
+if not found:
+  for location in get_search_locations():
+    if location != 'sofa':
+      if goto_loc(location):
+        if is_obj_visible(target):
+          report_found(target, location)
+          found = True
+          break
+        if search_here(target):
+          report_found(target, location)
+          found = True
+          break
+if not found:
+  say('모든 탐색 위치를 확인했지만 가방을 찾지 못했어요.')
+locations = ['fridge', 'cardboard_boxes', 'armchair', 'sofa', 'cabinet', 'door']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
+# 우산이랑 컵 둘 다 찾아줘.
+for target in ['umbrella', 'cup']:
+  found = False
+  for location in get_search_locations():
+    if goto_loc(location):
+      if is_obj_visible(target):
+        report_found(target, location)
+        found = True
+        break
+      if search_here(target):
+        report_found(target, location)
+        found = True
+        break
+  if not found:
+    say(f'{target}을(를) 찾지 못했어요.')
+locations = ['fridge', 'cardboard_boxes', 'armchair', 'sofa', 'cabinet', 'door']
+objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
+# 어두우니까 불 켜고 책 찾아줘.
+led_ok = led_on()
+target = 'book'
+found = False
+say('책을 찾아볼게요.')
 for location in get_search_locations():
   if goto_loc(location):
     if is_obj_visible(target):
@@ -17,91 +95,14 @@ for location in get_search_locations():
       found = True
       break
 if not found:
-  say('모든 탐색 위치를 확인했지만 우산을 찾지 못했습니다.')
-locations = ['kitchen_table', 'sofa', 'desk', 'shoe_rack']
-objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
-# 핸드폰 잃어버렸어. 찾아줘.
-say('휴대폰을 찾아볼게요.')
-found_loc = find_obj_in_locs('cell phone', get_search_locations())
-if found_loc:
-  say(f'{found_loc}에서 휴대폰을 찾았어요.')
-else:
-  say('모든 탐색 위치를 확인했지만 휴대폰을 찾지 못했어요.')
-locations = ['fridge', 'tv_stand', 'bed', 'entrance']
-objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
-# 지금 앞에 컵 보여?
-if is_obj_visible('cup'):
-  say('네, 지금 앞에 컵이 보여요.')
-else:
-  say('아니요, 지금은 컵이 보이지 않아요.')
-locations = ['fridge', 'tv_stand', 'bed', 'entrance']
-objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
-# 지갑 찾아줘.
-say('죄송해요. 지갑은 아직 찾을 수 있는 물체가 아니에요. 가방, 우산, 컵, 휴대폰, 책을 찾을 수 있어요.')
-locations = ['kitchen_table', 'sofa', 'desk', 'shoe_rack']
-objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
-# 소파 쪽에 가방 두고 온 것 같은데 찾아줘.
-say('소파부터 가방을 찾아볼게요.')
-loc_names = order_locs_by_hint(get_search_locations(), 'sofa')
-found_loc = find_obj_in_locs('handbag', loc_names)
-if found_loc:
-  say(f'{found_loc}에서 가방을 찾았어요.')
-else:
-  say('모든 탐색 위치를 확인했지만 가방을 찾지 못했어요.')
-locations = ['fridge', 'tv_stand', 'bed', 'entrance']
-objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
-# 화장실에 책 있는지 찾아봐.
-say('화장실은 등록된 탐색 위치가 아니에요. 등록된 위치를 모두 찾아볼게요.')
-found_loc = find_obj_in_locs('book', get_search_locations())
-if found_loc:
-  say(f'{found_loc}에서 책을 찾았어요.')
-else:
-  say('모든 탐색 위치를 확인했지만 책을 찾지 못했어요.')
-locations = ['fridge', 'tv_stand', 'bed', 'entrance']
-objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
-# 티비 앞에 컵 있는지 봐줘.
-say('TV 앞에서 컵을 찾아볼게요.')
-if goto_loc('tv_stand'):
-  if is_obj_visible('cup'):
-    report_found('cup', 'tv_stand')
-    say('TV 앞에서 컵을 찾았어요.')
-  elif search_here('cup'):
-    report_found('cup', 'tv_stand')
-    say('TV 앞에서 컵을 찾았어요.')
-  else:
-    say('TV 앞에는 컵이 없어요.')
-else:
-  say('TV 앞으로 이동하지 못했어요.')
-locations = ['kitchen_table', 'sofa', 'desk', 'shoe_rack']
-objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
-# 우산이랑 컵 둘 다 찾아줘.
-say('우산과 컵을 차례로 찾아볼게요.')
-for target in ['umbrella', 'cup']:
-  found_loc = find_obj_in_locs(target, get_search_locations())
-  if found_loc:
-    say(f'{target}: {found_loc}에서 찾았어요.')
-  else:
-    say(f'{target}: 찾지 못했어요.')
-locations = ['fridge', 'tv_stand', 'bed', 'entrance']
-objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
-# 어두우니까 불 켜고 내 책 찾아줘.
-led_ok = led_on()
-if led_ok:
-  say('조명을 켜고 책을 찾아볼게요.')
-else:
-  say('조명을 켤 수 없어요. 조명 없이 책을 찾아볼게요.')
-found_loc = find_obj_in_locs('book', get_search_locations())
-if found_loc:
-  say(f'{found_loc}에서 책을 찾았어요.')
-else:
   say('모든 탐색 위치를 확인했지만 책을 찾지 못했어요.')
 if led_ok:
   led_off()
-locations = ['kitchen_table', 'sofa', 'desk', 'shoe_rack']
+locations = ['fridge', 'cardboard_boxes', 'armchair', 'sofa', 'cabinet', 'door']
 objects = ['handbag', 'umbrella', 'cup', 'cell phone', 'book']
 # 지금 보이는 물건 뭐 있어?
 obj_names = get_visible_obj_names()
 if len(obj_names) == 0:
-  say('지금은 찾을 수 있는 물건이 보이지 않아요.')
+  say('지금은 물건이 보이지 않아요.')
 else:
   say(f'지금 보이는 물건: {obj_names}')

@@ -80,7 +80,9 @@ class MockRobot:
         self.calls.append((name,) + args)
 
     def _detect(self, obj_name):
-        if obj_name not in self.s.known_objects or obj_name in self.s.undetectable:
+        # A listed object whose detector class is missing is a configuration error. An
+        # unlisted name is simply never detected (normal observation -> False).
+        if obj_name in self.s.undetectable:
             raise UnsupportedObjectError(obj_name)
         if self.s.camera_error_at == (self.location, self.view):
             raise DetectionError(f'camera error at {self.location} view {self.view}')
