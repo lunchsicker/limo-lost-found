@@ -1,0 +1,10 @@
+string target
+float32 min_conf
+float32 timeout_sec
+---
+bool found
+string message
+string cls
+float32 confidence
+float32 distance
+geometry_msgs/PointStamped position
