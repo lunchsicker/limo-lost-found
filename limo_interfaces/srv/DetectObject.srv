@@ -1,10 +1,5 @@
-string target
-float32 min_conf
-float32 timeout_sec
+string[] targets
 ---
 bool found
-string message
-string cls
-float32 confidence
-float32 distance
-geometry_msgs/PointStamped position
+float32[] confidence
+string[] found_targets

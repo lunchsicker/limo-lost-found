@@ -1,0 +1,24 @@
+yolo_node:
+  ros__parameters:
+    use_sim_time: true
+    backend: yolov8n          # yolov8n 또는 world
+
+    max_range: 3.0
+    merge_dist: 0.8
+    min_n: 5
+    min_span: 0.5
+    default_timeout: 5.0
+
+    v8n:
+      model: yolov8n.pt
+      conf: 0.25
+      register_conf: 0.5
+      confirm_conf: 0.55
+      scan_vocab: [chair, couch, bed, dining table, tv, refrigerator, potted plant]
+
+    world:
+      model: yolov8s-world.pt
+      conf: 0.10
+      register_conf: 0.25
+      confirm_conf: 0.30
+      scan_vocab: [desk, chair, sofa, bed, dining table]

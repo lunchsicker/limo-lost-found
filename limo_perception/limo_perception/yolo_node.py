@@ -21,44 +21,61 @@ from limo_interfaces.srv import DetectObject
 class YoloNode(Node):
     def __init__(self):
         super().__init__('yolo_node')
+        # 공통
+        self.declare_parameter('backend', 'yolov8n')
         self.declare_parameter('image_topic', '/camera/color/image_raw/compressed')
         self.declare_parameter('depth_topic', '/camera/depth/image_raw/compressedDepth')
-        self.declare_parameter('model', 'yolov8n.pt')
-        self.declare_parameter('conf', 0.25)              # 추론 단계 최소 신뢰도
-        self.declare_parameter('depth_scale', 0.001)      # mm -> m
-        self.declare_parameter('target_frame', 'odom')    # 나중에 'map'
+        self.declare_parameter('depth_scale', 0.001)
+        self.declare_parameter('target_frame', 'odom')
         self.declare_parameter('max_range', 3.0)
         self.declare_parameter('merge_dist', 0.8)
-        self.declare_parameter('register_conf', 0.5)      # 프레임 단위 등록 기준
-        self.declare_parameter('confirm_conf', 0.55)      # 평균 신뢰도 기준
-        self.declare_parameter('min_n', 5)                # 최소 관측 횟수
-        self.declare_parameter('min_span', 0.5)           # 최소 관측 시간(초)
+        self.declare_parameter('min_n', 5)
+        self.declare_parameter('min_span', 0.5)
         self.declare_parameter('default_timeout', 5.0)
+        # backend별
+        self.declare_parameter('v8n.model', 'yolov8n.pt')
+        self.declare_parameter('v8n.conf', 0.25)
+        self.declare_parameter('v8n.register_conf', 0.5)
+        self.declare_parameter('v8n.confirm_conf', 0.55)
+        self.declare_parameter('v8n.scan_vocab', ['chair', 'couch', 'bed'])
+        self.declare_parameter('world.model', 'yolov8s-world.pt')
+        self.declare_parameter('world.conf', 0.10)
+        self.declare_parameter('world.register_conf', 0.25)
+        self.declare_parameter('world.confirm_conf', 0.30)
+        self.declare_parameter('world.scan_vocab', ['desk', 'chair', 'sofa'])
 
-        self.model = YOLO(self.get_parameter('model').value)   # 시작 시 1회 로드
-        self.conf = self.get_parameter('conf').value
+        self.backend = self.get_parameter('backend').value
+        p = 'world' if self.backend == 'world' else 'v8n'
+        self.conf = self.get_parameter(f'{p}.conf').value
+        self.register_conf = self.get_parameter(f'{p}.register_conf').value
+        self.confirm_conf = self.get_parameter(f'{p}.confirm_conf').value
+        self.scan_vocab = list(self.get_parameter(f'{p}.scan_vocab').value)
+
+        if self.backend == 'world':
+            from ultralytics import YOLOWorld
+            self.model = YOLOWorld(self.get_parameter('world.model').value)
+        else:
+            self.model = YOLO(self.get_parameter('v8n.model').value)
+
         self.depth_scale = self.get_parameter('depth_scale').value
         self.target_frame = self.get_parameter('target_frame').value
         self.max_range = self.get_parameter('max_range').value
         self.merge_dist = self.get_parameter('merge_dist').value
-        self.register_conf = self.get_parameter('register_conf').value
-        self.confirm_conf = self.get_parameter('confirm_conf').value
         self.min_n = self.get_parameter('min_n').value
         self.min_span = self.get_parameter('min_span').value
         self.default_timeout = self.get_parameter('default_timeout').value
 
         self.cbg = ReentrantCallbackGroup()
-        self.lock = threading.Lock()          # 한 번에 요청 하나만 처리
+        self.lock = threading.Lock()
         self.subs = []
         self.active = False
-        self.targets = set()
+        self.active_classes = set()     # 이번 요청에서 탐지할 클래스 이름들
         self.depth = None
         self.objects = []
         self.next_id = 1
         self.last_frame_t = 0.0
         self.busy = False
 
-        # camera_info는 값이 변하지 않으므로 항상 구독 (트래픽 매우 작음)
         self.fx = self.fy = self.cx = self.cy = None
         self.create_subscription(CameraInfo, '/camera/color/camera_info',
                                  self.cb_info, 1, callback_group=self.cbg)
@@ -73,9 +90,10 @@ class YoloNode(Node):
         self.srv = self.create_service(
             DetectObject, '/detect_object', self.handle_detect,
             callback_group=self.cbg)
-        self.get_logger().info('대기 중: /detect_object 요청 시에만 탐지합니다')
+        self.get_logger().info(
+            f'대기 중: /detect_object (backend={self.backend}) 요청 시에만 탐지합니다')
 
-    # ---------- 활성화 / 비활성화 ----------
+    # ---------- 구독 켜기/끄기 ----------
     def activate(self):
         if self.active:
             return
@@ -104,7 +122,7 @@ class YoloNode(Node):
 
     def cb_depth(self, msg):
         try:
-            arr = np.frombuffer(msg.data[12:], np.uint8)      # 12바이트 헤더 제거
+            arr = np.frombuffer(msg.data[12:], np.uint8)
             depth = cv2.imdecode(arr, cv2.IMREAD_UNCHANGED)
             if depth is not None and depth.dtype == np.uint16:
                 self.depth = depth
@@ -143,8 +161,12 @@ class YoloNode(Node):
         return (cx, cy, float(np.median(roi)) * self.depth_scale)
 
     def process(self, frame, header):
-        name_to_id = {v: k for k, v in self.model.names.items()}
-        classes = [name_to_id[t] for t in self.targets if t in name_to_id] or [-1]
+        if self.backend == 'world':
+            classes = None      # set_classes로 이미 어휘가 제한됨
+        else:
+            name_to_id = {v: k for k, v in self.model.names.items()}
+            classes = [name_to_id[t] for t in self.active_classes
+                       if t in name_to_id] or [-1]
         result = self.model(frame, conf=self.conf, imgsz=320,
                             classes=classes, device=0, verbose=False)[0]
 
@@ -161,7 +183,6 @@ class YoloNode(Node):
                 self.register_object(name, u, v, Z, float(b.conf))
         self.pub_det.publish(String(data=', '.join(dets)))
 
-        # 영상 발행은 구독자가 있을 때만
         if self.pub_img.get_subscription_count() > 0:
             annotated = result.plot()
             out = Image()
@@ -202,10 +223,10 @@ class YoloNode(Node):
                              'n': 1, 'conf_sum': conf, 't0': now, 't1': now})
         self.next_id += 1
 
-    def is_confirmed(self, o, min_conf):
+    def is_confirmed(self, o):
         return (o['n'] >= self.min_n
                 and (o['t1'] - o['t0']) >= self.min_span
-                and o['conf_sum'] / o['n'] >= min_conf)
+                and o['conf_sum'] / o['n'] >= self.confirm_conf)
 
     def publish_markers(self):
         arr = MarkerArray()
@@ -236,42 +257,62 @@ class YoloNode(Node):
 
     # ---------- 서비스 ----------
     def handle_detect(self, req, res):
+        res.found = False
+        res.confidence = []
+        res.found_targets = []
+
         if not self.lock.acquire(blocking=False):
-            res.found = False
-            res.message = '이미 다른 탐지 요청을 처리 중'
+            self.get_logger().warn('이미 다른 탐지 요청을 처리 중 (BUSY)')
             return res
         try:
-            self.targets = {req.target}
+            targets = list(dict.fromkeys(t.strip() for t in req.targets if t.strip()))
+            scan_mode = len(targets) == 0
+
+            # YOLOv8n은 COCO 이름만 허용, YOLO-World는 임의 단어 허용
+            if self.backend != 'world':
+                valid = set(self.model.names.values())
+                unknown = [t for t in targets if t not in valid]
+                if unknown:
+                    self.get_logger().warn(f'알 수 없는 클래스: {unknown} (UNKNOWN_CLASS)')
+                    return res
+
+            vocab = self.scan_vocab if scan_mode else targets
+            self.active_classes = set(vocab)
+            if self.backend == 'world':
+                self.model.set_classes(list(vocab))   # 요청 시작 시 1회만
+
             self.objects = []
             self.next_id = 1
-            min_conf = req.min_conf if req.min_conf > 0 else self.confirm_conf
-            timeout = req.timeout_sec if req.timeout_sec > 0 else self.default_timeout
-
             self.activate()
-            t_end = time.time() + timeout
-            while time.time() < t_end:
-                cands = [o for o in self.objects
-                         if o['cls'] == req.target and self.is_confirmed(o, min_conf)]
-                if cands:
-                    o = max(cands, key=lambda o: o['conf_sum'] / o['n'])
-                    res.found = True
-                    res.cls = o['cls']
-                    res.confidence = o['conf_sum'] / o['n']
-                    res.distance = float(np.hypot(o['x'], o['y']))   # odom 원점 기준 근사
-                    res.position.header.frame_id = self.target_frame
-                    res.position.point.x = o['x']
-                    res.position.point.y = o['y']
-                    res.position.point.z = o['z']
-                    res.message = 'ok'
-                    self.publish_markers()
-                    return res
-                time.sleep(0.1)
+            t_end = time.time() + self.default_timeout
+            confirmed = {}
 
-            if time.time() - self.last_frame_t > 2.0:
-                res.message = '카메라 프레임이 들어오지 않음 (CAMERA_TIMEOUT)'
-            else:
-                res.message = f'{timeout:.0f}초 안에 확정하지 못함 (NOT_FOUND)'
-            res.found = False
+            while time.time() < t_end:
+                names = vocab if scan_mode else targets
+                for t in names:
+                    if t in confirmed:
+                        continue
+                    cands = [o for o in self.objects
+                             if o['cls'] == t and self.is_confirmed(o)]
+                    if cands:
+                        confirmed[t] = max(cands, key=lambda o: o['conf_sum'] / o['n'])
+                if not scan_mode and len(confirmed) == len(targets):
+                    break               # 요청한 것을 전부 찾음
+                time.sleep(0.1)         # 스캔 모드는 timeout까지 수집
+
+            res.found_targets = list(confirmed.keys())
+            res.confidence = [float(o['conf_sum'] / o['n']) for o in confirmed.values()]
+            if confirmed:
+                self.publish_markers()
+
+            res.found = (len(confirmed) >= 1) if scan_mode \
+                else (len(confirmed) == len(targets))
+
+            if not res.found:
+                if time.time() - self.last_frame_t > 2.0:
+                    self.get_logger().warn('카메라 프레임이 들어오지 않음 (CAMERA_TIMEOUT)')
+                else:
+                    self.get_logger().info('확정 못함 (NOT_FOUND)')
             return res
         finally:
             self.deactivate()

@@ -1,31 +1,22 @@
+import os
+
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    yolo = Node(
-        package='limo_perception',
-        executable='yolo_node',
-        name='yolo_node',
-        output='screen',
-        parameters=[{
-            'use_sim_time': True,
-            'conf': 0.25,
-            'max_range' : 3.0,
-            'merge_dist' : 0.8
-        }],
-    )
-
-    republish = Node(
-        package='image_transport',
-        executable='republish',
-        name='yolo_republish',
-        arguments=['raw', 'compressed'],
-        remappings=[
-            ('in', '/yolo/image_annotated'),
-            ('out/compressed', '/yolo/image_annotated/compressed'),
-        ],
-        parameters=[{'use_sim_time': True}],
-    )
-
-    return LaunchDescription([yolo, republish])
+    cfg = os.path.join(get_package_share_directory('limo_perception'),
+                       'config', 'yolo_params.yaml')
+    return LaunchDescription([
+        DeclareLaunchArgument('backend', default_value='yolov8n'),
+        Node(
+            package='limo_perception',
+            executable='yolo_node',
+            name='yolo_node',
+            output='screen',
+            parameters=[cfg, {'backend': LaunchConfiguration('backend')}],
+        ),
+    ])
