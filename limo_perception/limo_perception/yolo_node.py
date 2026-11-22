@@ -1,5 +1,6 @@
 import threading
 import time
+import torch
 
 import cv2
 import numpy as np
@@ -8,7 +9,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CompressedImage, CameraInfo
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import Point, PointStamped
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import String
 from tf2_ros import Buffer, TransformListener
@@ -67,6 +68,7 @@ class YoloNode(Node):
 
         self.cbg = ReentrantCallbackGroup()
         self.lock = threading.Lock()
+        self.obj_lock = threading.Lock()
         self.subs = []
         self.active = False
         self.active_classes = set()     # 이번 요청에서 탐지할 클래스 이름들
@@ -75,6 +77,9 @@ class YoloNode(Node):
         self.next_id = 1
         self.last_frame_t = 0.0
         self.busy = False
+
+        self.device = 0 if torch.cuda.is_available() else 'cpu'
+        self.get_logger().info(f'추론 디바이스 : {self.device}')
 
         self.fx = self.fy = self.cx = self.cy = None
         self.create_subscription(CameraInfo, '/camera/color/camera_info',
@@ -168,7 +173,7 @@ class YoloNode(Node):
             classes = [name_to_id[t] for t in self.active_classes
                        if t in name_to_id] or [-1]
         result = self.model(frame, conf=self.conf, imgsz=320,
-                            classes=classes, device=0, verbose=False)[0]
+                            classes=classes, device='cpu', verbose=False)[0]
 
         dets = []
         for b in result.boxes:
@@ -208,31 +213,29 @@ class YoloNode(Node):
             return
         x, y, z = pm.point.x, pm.point.y, pm.point.z
         now = time.time()
-
-        for o in self.objects:
-            if o['cls'] == name and np.hypot(o['x'] - x, o['y'] - y) < self.merge_dist:
-                n = o['n']
-                o['x'] = (o['x'] * n + x) / (n + 1)
-                o['y'] = (o['y'] * n + y) / (n + 1)
-                o['z'] = (o['z'] * n + z) / (n + 1)
-                o['n'] = n + 1
-                o['conf_sum'] += conf
-                o['t1'] = now
-                return
-        self.objects.append({'id': self.next_id, 'cls': name, 'x': x, 'y': y, 'z': z,
+        with self.obj_lock:
+            for o in self.objects:
+                if o['cls'] == name and np.hypot(o['x'] - x, o['y'] - y) < self.merge_dist:
+                    n = o['n']
+                    o['x'] = (o['x'] * n + x) / (n + 1)
+                    o['y'] = (o['y'] * n + y) / (n + 1)
+                    o['z'] = (o['z'] * n + z) / (n + 1)
+                    o['n'] = n + 1
+                    o['conf_sum'] += conf
+                    o['t1'] = now
+                    return
+            self.objects.append({'id': self.next_id, 'cls': name, 'x': x, 'y': y, 'z': z,
                              'n': 1, 'conf_sum': conf, 't0': now, 't1': now})
-        self.next_id += 1
+            self.next_id += 1
 
     def is_confirmed(self, o):
         return (o['n'] >= self.min_n
                 and (o['t1'] - o['t0']) >= self.min_span
                 and o['conf_sum'] / o['n'] >= self.confirm_conf)
 
-    def publish_markers(self):
+    def publish_markers(self, confirmed_objs):
         arr = MarkerArray()
-        for o in self.objects:
-            if o['n'] < self.min_n:
-                continue
+        for o in confirmed_objs:
             m = Marker()
             m.header.frame_id = self.target_frame
             m.ns, m.id = 'obj', o['id']
@@ -242,6 +245,7 @@ class YoloNode(Node):
             m.scale.x = m.scale.y = m.scale.z = 0.15
             m.color.r, m.color.g, m.color.b, m.color.a = 1.0, 0.2, 0.2, 1.0
             arr.markers.append(m)
+
             t = Marker()
             t.header.frame_id = self.target_frame
             t.ns, t.id = 'txt', o['id']
@@ -260,13 +264,24 @@ class YoloNode(Node):
         res.found = False
         res.confidence = []
         res.found_targets = []
+        res.positions = []
 
         if not self.lock.acquire(blocking=False):
             self.get_logger().warn('이미 다른 탐지 요청을 처리 중 (BUSY)')
             return res
         try:
             targets = list(dict.fromkeys(t.strip() for t in req.targets if t.strip()))
-            scan_mode = len(targets) == 0
+            locations = list(dict.fromkeys(l.strip() for l in req.location if l.strip()))
+
+            # location이 없고 scan_furniture=True일 때만 가구 어휘(scan_vocab)를 함께 탐색
+            if not locations and req.scan_furniture:
+                raw_vocab = list(dict.fromkeys(self.scan_vocab + targets))
+            else:
+                raw_vocab = targets if targets else locations
+
+            if not raw_vocab:
+                self.get_logger().warn('탐지할 대상(targets/location/scan_furniture)이 비어 있습니다')
+                return res
 
             # YOLOv8n은 COCO 이름만 허용, YOLO-World는 임의 단어 허용
             if self.backend != 'world':
@@ -275,44 +290,69 @@ class YoloNode(Node):
                 if unknown:
                     self.get_logger().warn(f'알 수 없는 클래스: {unknown} (UNKNOWN_CLASS)')
                     return res
+                vocab = [v for v in raw_vocab if v in valid]
+            else:
+                vocab = raw_vocab
 
-            vocab = self.scan_vocab if scan_mode else targets
             self.active_classes = set(vocab)
             if self.backend == 'world':
-                self.model.set_classes(list(vocab))   # 요청 시작 시 1회만
+                self.model.set_classes(list(vocab))
 
-            self.objects = []
-            self.next_id = 1
+            with self.obj_lock:
+                self.objects = []
+                self.next_id = 1
+
+            self.get_logger().info(
+                f'탐지 시작 -> targets={targets}, location={locations}, '
+                f'scan_furniture={req.scan_furniture}, vocab={vocab}')
+
             self.activate()
             t_end = time.time() + self.default_timeout
             confirmed = {}
 
             while time.time() < t_end:
-                names = vocab if scan_mode else targets
-                for t in names:
-                    if t in confirmed:
+                with self.obj_lock:
+                    snapshot = list(self.objects)
+
+                for cls_name in vocab:
+                    if cls_name in confirmed:
                         continue
-                    cands = [o for o in self.objects
-                             if o['cls'] == t and self.is_confirmed(o)]
+                    cands = [o for o in snapshot
+                             if o['cls'] == cls_name and self.is_confirmed(o)]
                     if cands:
-                        confirmed[t] = max(cands, key=lambda o: o['conf_sum'] / o['n'])
-                if not scan_mode and len(confirmed) == len(targets):
-                    break               # 요청한 것을 전부 찾음
-                time.sleep(0.1)         # 스캔 모드는 timeout까지 수집
+                        confirmed[cls_name] = max(cands, key=lambda o: o['conf_sum'] / o['n'])
 
-            res.found_targets = list(confirmed.keys())
-            res.confidence = [float(o['conf_sum'] / o['n']) for o in confirmed.values()]
+                # targets가 지정된 경우, 요청한 targets를 모두 찾았으면 즉시 조기 종료
+                if targets and all(t in confirmed for t in targets):
+                    break
+                time.sleep(0.1)
+
+            # 타겟 우선 정렬 후 나머지(가구 등) 추가
+            ordered_keys = [t for t in targets if t in confirmed] + \
+                           [k for k in confirmed.keys() if k not in targets]
+
+            for k in ordered_keys:
+                obj = confirmed[k]
+                res.found_targets.append(k)
+                res.confidence.append(float(obj['conf_sum'] / obj['n']))
+                pt = Point()
+                pt.x = float(obj['x'])
+                pt.y = float(obj['y'])
+                pt.z = float(obj['z'])
+                res.positions.append(pt)
+
             if confirmed:
-                self.publish_markers()
+                self.publish_markers([confirmed[k] for k in ordered_keys])
 
-            res.found = (len(confirmed) >= 1) if scan_mode \
+            res.found = (len(confirmed) >= 1) if not targets \
                 else (len(confirmed) == len(targets))
 
             if not res.found:
                 if time.time() - self.last_frame_t > 2.0:
                     self.get_logger().warn('카메라 프레임이 들어오지 않음 (CAMERA_TIMEOUT)')
                 else:
-                    self.get_logger().info('확정 못함 (NOT_FOUND)')
+                    self.get_logger().info(
+                        f'확정 못함 (NOT_FOUND, 주변 발견 객체: {res.found_targets})')
             return res
         finally:
             self.deactivate()

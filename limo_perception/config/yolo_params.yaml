@@ -1,13 +1,14 @@
 yolo_node:
   ros__parameters:
     use_sim_time: true
-    backend: yolov8n          # yolov8n 또는 world
+    backend: world          # yolov8n 또는 world
+    target_frame : odom
 
-    max_range: 3.0
-    merge_dist: 0.8
-    min_n: 5
-    min_span: 0.5
-    default_timeout: 5.0
+    max_range: 5.5
+    merge_dist: 1.0
+    min_n: 2
+    min_span: 0.1
+    default_timeout: 15.0
 
     v8n:
       model: yolov8n.pt
@@ -18,7 +19,7 @@ yolo_node:
 
     world:
       model: yolov8s-world.pt
-      conf: 0.10
-      register_conf: 0.25
-      confirm_conf: 0.30
-      scan_vocab: [desk, chair, sofa, bed, dining table]
+      conf: 0.05
+      register_conf: 0.15
+      confirm_conf: 0.20
+      scan_vocab: [desk,table, chair, sofa, couch, bed, refrigerator]

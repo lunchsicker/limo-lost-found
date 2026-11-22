@@ -11,7 +11,7 @@ def generate_launch_description():
     cfg = os.path.join(get_package_share_directory('limo_perception'),
                        'config', 'yolo_params.yaml')
     return LaunchDescription([
-        DeclareLaunchArgument('backend', default_value='yolov8n'),
+        DeclareLaunchArgument('backend', default_value='world'),
         Node(
             package='limo_perception',
             executable='yolo_node',
