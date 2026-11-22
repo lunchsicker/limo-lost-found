@@ -1,0 +1,8 @@
+string[] location
+string[] targets
+bool scan_furniture
+---
+bool found
+float32[] confidence
+string[] found_targets
+geometry_msgs/Point[] positions
