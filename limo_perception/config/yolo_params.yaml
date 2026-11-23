@@ -18,7 +18,7 @@ yolo_node:
       scan_vocab: [chair, couch, bed, dining table, tv, refrigerator, potted plant]
 
     world:
-      model: yolov8s-world.pt
+      model: yolov8s-world2.pt
       conf: 0.05
       register_conf: 0.15
       confirm_conf: 0.20
